@@ -71,6 +71,9 @@ const state = {
   sceneProps: [],
   sceneMission: null,
   currentObjectId: null,
+  nearObjectId: null,
+  nearObjectSince: 0,
+  autoInteractDelayUntil: 0,
   sceneSkinIndex: 0,
   alertCooldown: 0,
   voices: [],
@@ -219,6 +222,8 @@ function prepareSceneObjects() {
   }));
   state.sceneProps = createSceneProps(layout);
   state.currentObjectId = null;
+  state.nearObjectId = null;
+  state.nearObjectSince = 0;
   state.battleLog = state.sceneMission.brief;
 }
 
@@ -301,6 +306,8 @@ function refreshSceneIfNeeded() {
   state.playerY = 22;
   state.targetX = null;
   state.targetY = null;
+  state.nearObjectId = null;
+  state.nearObjectSince = 0;
   prepareSceneObjects();
   state.battleLog = "进入新的街区，寻找下一组目标";
 }
@@ -520,6 +527,34 @@ function updateSceneMovement() {
   }
   state.distance += (dx || dy || state.targetX !== null) ? 0.22 : 0;
   checkSceneProps();
+  checkAutoInteract();
+}
+
+function nearestIncompleteObject(maxDistance = 11.5) {
+  return state.sceneObjects
+    .filter((item) => !item.done)
+    .map((item) => ({ item, distance: distanceTo(item) }))
+    .filter(({ distance }) => distance < maxDistance)
+    .sort((a, b) => a.distance - b.distance)[0]?.item || null;
+}
+
+function checkAutoInteract() {
+  if (!state.running || state.paused || Date.now() < state.autoInteractDelayUntil) return;
+  const object = nearestIncompleteObject();
+  if (!object) {
+    state.nearObjectId = null;
+    state.nearObjectSince = 0;
+    return;
+  }
+  if (state.nearObjectId !== object.id) {
+    state.nearObjectId = object.id;
+    state.nearObjectSince = Date.now();
+    state.battleLog = `发现${object.label}，正在读取信号`;
+    return;
+  }
+  if (Date.now() - state.nearObjectSince > 360) {
+    interactObject(object.id);
+  }
 }
 
 function checkSceneProps() {
@@ -677,6 +712,9 @@ function answerGate(button, correct) {
     $("wordGate").classList.remove("boss");
     state.paused = false;
     state.currentObjectId = null;
+    state.nearObjectId = null;
+    state.nearObjectSince = 0;
+    state.autoInteractDelayUntil = Date.now() + 900;
     state.bossActive = false;
     state.bossChain = 0;
     completeUnit();
@@ -714,6 +752,9 @@ function start(mode = "unit") {
   state.sceneProps = [];
   state.sceneMission = null;
   state.currentObjectId = null;
+  state.nearObjectId = null;
+  state.nearObjectSince = 0;
+  state.autoInteractDelayUntil = 0;
   state.alertCooldown = 0;
   state.distance = 0;
   state.sceneIndex = mode === "unit" ? state.unitIndex : 0;
@@ -795,6 +836,8 @@ exploreScene.addEventListener("pointerdown", (event) => {
   const point = scenePointFromEvent(event);
   setSceneTarget(point.x, point.y);
   state.currentObjectId = null;
+  state.nearObjectId = null;
+  state.nearObjectSince = 0;
   state.battleLog = "正在移动，寻找可调查目标";
 });
 window.addEventListener("keydown", (event) => {
