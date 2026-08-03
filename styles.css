@@ -349,6 +349,66 @@ h1 {
   animation: task-float 2.2s ease-in-out infinite;
 }
 
+.intel-node,
+.shortcut-node,
+.decoy-node {
+  width: 118px;
+  min-height: 68px;
+  border-radius: 6px;
+  text-transform: none;
+}
+
+.intel-node {
+  border-color: rgba(34, 211, 238, 0.72);
+  background:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.16) 0 3px, transparent 3px 100%),
+    linear-gradient(180deg, rgba(33, 63, 88, 0.96), rgba(10, 29, 46, 0.98));
+  box-shadow: 0 8px 0 rgba(0,0,0,0.22), 0 0 26px rgba(34, 211, 238, 0.22);
+}
+
+.intel-node::before,
+.shortcut-node::before,
+.decoy-node::before {
+  height: 4px;
+}
+
+.intel-node strong,
+.shortcut-node strong,
+.decoy-node strong {
+  font-size: 0.88rem;
+}
+
+.camera-node::after,
+.signal-node::after,
+.archive-chip::after,
+.book-node::after {
+  background: rgba(34, 211, 238, 0.32);
+}
+
+.shortcut-node {
+  border-color: rgba(246, 200, 95, 0.84);
+  background:
+    repeating-linear-gradient(135deg, rgba(246, 200, 95, 0.12) 0 7px, transparent 7px 15px),
+    linear-gradient(180deg, rgba(52, 50, 34, 0.96), rgba(20, 26, 31, 0.98));
+  box-shadow: 0 8px 0 rgba(0,0,0,0.24), 0 0 24px rgba(246, 200, 95, 0.28);
+}
+
+.shortcut-node::after {
+  background: rgba(246, 200, 95, 0.36);
+}
+
+.decoy-node {
+  border-color: rgba(255, 107, 74, 0.78);
+  background:
+    linear-gradient(135deg, rgba(255, 107, 74, 0.18) 0 18%, transparent 18%),
+    linear-gradient(180deg, rgba(66, 46, 50, 0.96), rgba(28, 29, 35, 0.98));
+  box-shadow: 0 8px 0 rgba(0,0,0,0.24), 0 0 22px rgba(255, 107, 74, 0.22);
+}
+
+.decoy-node::after {
+  background: rgba(255, 107, 74, 0.24);
+}
+
 .task-item::before {
   left: 18px;
   right: 18px;

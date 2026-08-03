@@ -37,44 +37,68 @@ const objectCatalog = [
 ];
 const taskPlans = [
   {
-    title: "备用电源",
-    goalLabel: "能量块",
-    collectAction: "拾取",
-    itemClass: "task-item battery-cell",
-    finalLabel: "电梯终端",
-    finalAction: "启动",
-    finalClass: "terminal final-node",
-    success: "备用电源接通，电梯终端可以启动"
-  },
-  {
-    title: "门禁卡组",
-    goalLabel: "门禁卡",
-    collectAction: "回收",
-    itemClass: "task-item key-card",
-    finalLabel: "门禁",
-    finalAction: "开门",
+    title: "地铁追踪",
+    goalLabel: "有效情报",
+    collectAction: "确认",
+    intelNeeded: 2,
+    finalLabel: "出口闸机",
+    finalAction: "突围",
     finalClass: "gate-lock final-node",
-    success: "门禁卡组已凑齐，出口门禁等待验证"
+    success: "路线坐标已确认，出口闸机开放验证",
+    nodes: [
+      { label: "监控回放", action: "接入", role: "intel", className: "intel-node camera-node", value: 1, reward: "锁定目标动线" },
+      { label: "站台广播", action: "监听", role: "intel", className: "intel-node signal-node", value: 1, reward: "获得站台编号" },
+      { label: "假通行码", action: "排除", role: "decoy", className: "decoy-node", value: 0, reward: "假线索，时间 -6s" },
+      { label: "维修通道", action: "抄近路", role: "shortcut", className: "shortcut-node", value: 1, reward: "走捷径，警戒升高" }
+    ]
   },
   {
-    title: "散落档案",
-    goalLabel: "档案页",
-    collectAction: "找回",
-    itemClass: "task-item archive-chip",
-    finalLabel: "档案柜",
-    finalAction: "归档",
+    title: "图书馆夜巡",
+    goalLabel: "档案证据",
+    collectAction: "核对",
+    intelNeeded: 2,
+    finalLabel: "封存档案柜",
+    finalAction: "解封",
     finalClass: "archive final-node",
-    success: "档案页已找回，去档案柜完成归档"
+    success: "档案链完整，封存档案柜可以解封",
+    nodes: [
+      { label: "借阅记录", action: "检索", role: "intel", className: "intel-node archive-chip", value: 1, reward: "找到关键词位置" },
+      { label: "书架暗号", action: "比对", role: "intel", className: "intel-node book-node", value: 1, reward: "确认暗号来源" },
+      { label: "过期索引", action: "核验", role: "decoy", className: "decoy-node", value: 0, reward: "索引过期，时间 -6s" },
+      { label: "禁区书梯", action: "攀上", role: "shortcut", className: "shortcut-node", value: 1, reward: "快速定位，警戒升高" }
+    ]
   },
   {
-    title: "信号校准",
-    goalLabel: "信号源",
+    title: "天台校准",
+    goalLabel: "信号坐标",
     collectAction: "校准",
-    itemClass: "task-item signal-node",
-    finalLabel: "中继器",
+    intelNeeded: 2,
+    finalLabel: "屋顶中继器",
     finalAction: "连接",
     finalClass: "relay final-node",
-    success: "信号源稳定，中继器可以连接"
+    success: "坐标稳定，屋顶中继器等待连接",
+    nodes: [
+      { label: "北侧天线", action: "校准", role: "intel", className: "intel-node signal-node", value: 1, reward: "北侧坐标稳定" },
+      { label: "风速仪", action: "读取", role: "intel", className: "intel-node camera-node", value: 1, reward: "修正风速偏差" },
+      { label: "干扰源", action: "识别", role: "decoy", className: "decoy-node", value: 0, reward: "干扰源误导，时间 -6s" },
+      { label: "边缘小道", action: "穿越", role: "shortcut", className: "shortcut-node", value: 1, reward: "绕开楼梯，警戒升高" }
+    ]
+  },
+  {
+    title: "市集调查",
+    goalLabel: "目标线索",
+    collectAction: "追踪",
+    intelNeeded: 2,
+    finalLabel: "交易终端",
+    finalAction: "锁定",
+    finalClass: "terminal final-node",
+    success: "目标身份缩小，交易终端可以锁定",
+    nodes: [
+      { label: "摊位账本", action: "翻查", role: "intel", className: "intel-node archive-chip", value: 1, reward: "找到交易时间" },
+      { label: "匿名短信", action: "解析", role: "intel", className: "intel-node signal-node", value: 1, reward: "获得接头地点" },
+      { label: "混淆名单", action: "筛查", role: "decoy", className: "decoy-node", value: 0, reward: "名单混淆，时间 -6s" },
+      { label: "人群捷径", action: "穿过", role: "shortcut", className: "shortcut-node", value: 1, reward: "节省路线，警戒升高" }
+    ]
   }
 ];
 const sceneLayouts = [
@@ -117,6 +141,7 @@ const state = {
   taskPlan: null,
   taskGoal: 0,
   taskDone: 0,
+  alertLevel: 0,
   currentObjectId: null,
   nearObjectId: null,
   nearObjectSince: 0,
@@ -236,7 +261,7 @@ function renderSceneObjectButtons() {
     const button = document.createElement("button");
     const near = distanceTo(object) < 13;
     const locked = isObjectLocked(object);
-    const status = object.done ? "完成" : locked ? `缺 ${state.taskGoal - state.taskDone}` : object.action;
+    const status = object.done ? "完成" : locked ? `情报 ${intelText()}` : object.action;
     button.type = "button";
     button.className = `scene-object ${object.className}`;
     button.dataset.object = object.id;
@@ -247,7 +272,7 @@ function renderSceneObjectButtons() {
     button.classList.toggle("done", object.done);
     button.classList.toggle("locked", locked);
     button.classList.toggle("ready", object.role === "final" && !locked && !object.done);
-    button.title = object.done ? "已完成" : locked ? `还差 ${state.taskGoal - state.taskDone} 个${state.taskPlan?.goalLabel || "目标"}` : object.role === "final" ? "关键节点：完成单词验证" : "靠近后完成任务动作";
+    button.title = object.done ? "已完成" : locked ? `有效情报不足：${intelText()}` : object.role === "final" ? "关键节点：完成单词验证" : object.reward || "靠近后行动";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       interactObject(object.id);
@@ -261,37 +286,34 @@ function prepareSceneObjects() {
   const layout = sceneLayouts[state.sceneSkinIndex % sceneLayouts.length];
   const shuffledLayout = shuffle(layout);
   const plan = taskPlans[state.sceneSkinIndex % taskPlans.length];
-  const taskGoal = Math.min(3, Math.max(2, shuffledLayout.length - 1));
-  const finalPoint = shuffledLayout[taskGoal] || shuffledLayout[shuffledLayout.length - 1];
+  const taskGoal = plan.intelNeeded;
+  const finalPoint = shuffledLayout[shuffledLayout.length - 1];
   state.sceneMission = sceneMissions[missionIndex];
   state.taskPlan = plan;
   state.taskGoal = taskGoal;
   state.taskDone = 0;
-  const taskObjects = shuffledLayout.slice(0, taskGoal).map((point, index) => ({
-    id: `task-${state.sceneSkinIndex}-${index}`,
-    label: `${plan.goalLabel} ${index + 1}`,
-    action: plan.collectAction,
-    className: plan.itemClass,
-    role: "task",
+  state.alertLevel = 0;
+  const nodeObjects = shuffle(plan.nodes).slice(0, Math.min(plan.nodes.length, shuffledLayout.length - 1)).map((node, index) => ({
+    ...node,
+    id: `${node.role}-${state.sceneSkinIndex}-${index}`,
     done: false,
-    x: point.x,
-    y: point.y
+    x: shuffledLayout[index].x,
+    y: shuffledLayout[index].y
   }));
-  const sideTemplate = shuffle(objectCatalog).find((item) => item.className !== plan.finalClass) || objectCatalog[0];
-  const sidePoint = shuffledLayout[taskGoal + 1];
+  const sidePoint = shuffledLayout.length > 5 ? shuffledLayout[shuffledLayout.length - 2] : null;
   const sideObject = sidePoint ? [{
-    ...sideTemplate,
     id: `side-${state.sceneSkinIndex}`,
-    label: "补给箱",
-    action: "开启",
+    label: "临时补给",
+    action: "拿取",
     className: "toolbox side-node",
     role: "side",
     done: false,
+    reward: "恢复少量时间",
     x: sidePoint.x,
     y: sidePoint.y
   }] : [];
   state.sceneObjects = [
-    ...taskObjects,
+    ...nodeObjects,
     ...sideObject,
     {
       id: `final-${state.sceneSkinIndex}`,
@@ -310,7 +332,7 @@ function prepareSceneObjects() {
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
-  state.battleLog = `${state.sceneMission.title}：${plan.collectAction} ${taskGoal} 个${plan.goalLabel}`;
+  state.battleLog = `${plan.title}：获取 ${taskGoal} 条${plan.goalLabel}，避开假线索`;
 }
 
 function createSceneProps(layout) {
@@ -344,6 +366,10 @@ function isObjectLocked(object) {
   return object.role === "final" && state.taskDone < state.taskGoal;
 }
 
+function intelText() {
+  return `${Math.min(state.taskDone, state.taskGoal)}/${state.taskGoal}`;
+}
+
 function setSceneTarget(x, y) {
   state.targetX = Math.max(6, Math.min(94, x));
   state.targetY = Math.max(10, Math.min(84, y));
@@ -368,8 +394,8 @@ function interactObject(id) {
     renderBattle();
     return;
   }
-  if (object.role === "task") {
-    completeTaskObject(object);
+  if (object.role === "intel" || object.role === "decoy" || object.role === "shortcut") {
+    completeIntelObject(object);
     return;
   }
   if (object.role === "side") {
@@ -377,8 +403,7 @@ function interactObject(id) {
     return;
   }
   if (isObjectLocked(object)) {
-    const missing = Math.max(0, state.taskGoal - state.taskDone);
-    state.battleLog = `${object.label}还没解锁，还差 ${missing} 个${state.taskPlan?.goalLabel || "目标"}`;
+    state.battleLog = `${object.label}暂未开放：有效情报 ${intelText()}`;
     state.autoInteractDelayUntil = Date.now() + 900;
     renderBattle();
     return;
@@ -389,22 +414,44 @@ function interactObject(id) {
   openGate(object.word, object.type);
 }
 
-function completeTaskObject(object) {
+function completeIntelObject(object) {
+  const beforeIntel = state.taskDone;
   object.done = true;
-  state.taskDone += 1;
-  state.score += 22;
-  state.stars += 1;
+  if (object.role === "intel") {
+    state.taskDone += object.value || 1;
+    state.score += 32;
+    state.stars += 1;
+    state.battleLog = `${object.label}确认：${object.reward}，情报 ${intelText()}`;
+  }
+  if (object.role === "decoy") {
+    state.seconds = Math.max(8, state.seconds - 6);
+    state.score = Math.max(0, state.score - 8);
+    state.streak = 0;
+    state.battleLog = `${object.label}是干扰项，时间 -6s`;
+    $("gameStage").classList.add("shake");
+    window.setTimeout(() => $("gameStage").classList.remove("shake"), 340);
+  }
+  if (object.role === "shortcut") {
+    state.taskDone += object.value || 1;
+    state.alertLevel += 1;
+    state.score += 42;
+    state.seconds += 3;
+    state.battleLog = `${object.label}成功：情报 ${intelText()}，警戒 ${state.alertLevel}`;
+    if (state.alertLevel >= 2) {
+      state.hearts -= 1;
+      state.battleLog += "，被巡逻锁定，体力 -1";
+    }
+  }
   state.autoInteractDelayUntil = Date.now() + 520;
-  if (state.taskDone >= state.taskGoal) {
-    state.seconds += 5;
+  if (beforeIntel < state.taskGoal && state.taskDone >= state.taskGoal) {
+    state.seconds += 4;
     state.score += 18;
     state.battleLog = state.taskPlan?.success || "目标集齐，关键节点已开放";
-  } else {
-    state.battleLog = `${object.label}完成，进度 ${state.taskDone}/${state.taskGoal}`;
   }
   save();
   renderHud();
   renderBattle();
+  if (state.hearts <= 0) showEnergyPanel();
 }
 
 function completeSideObject(object) {
@@ -606,7 +653,7 @@ function renderHud() {
     const finalReady = state.taskDone >= state.taskGoal;
     const text = finalReady
       ? `${state.taskPlan.finalLabel}已开放，前往完成单词验证`
-      : `${state.taskPlan.collectAction}${state.taskPlan.goalLabel} ${state.taskDone}/${state.taskGoal}`;
+      : `${state.taskPlan.goalLabel} ${intelText()} · 警戒 ${state.alertLevel}`;
     if (!state.paused && !state.battleLog) $("battleLog").textContent = text;
   }
   $("starCount").textContent = `${state.stars}/${state.progress.coins || 0}`;
@@ -705,7 +752,7 @@ function checkAutoInteract() {
     state.nearObjectSince = Date.now();
     state.battleLog = object.role === "final" && isObjectLocked(object)
       ? `${object.label}暂未开放，先完成前置任务`
-      : `接近${object.label}`;
+      : `接近${object.label}：${object.reward || object.action}`;
     return;
   }
   if (Date.now() - state.nearObjectSince > 360) {
@@ -949,11 +996,15 @@ function start(mode = "unit") {
   state.sceneObjects = [];
   state.sceneProps = [];
   state.sceneMission = null;
+  state.taskPlan = null;
+  state.taskGoal = 0;
+  state.taskDone = 0;
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
   state.autoInteractDelayUntil = 0;
   state.alertCooldown = 0;
+  state.alertLevel = 0;
   state.distance = 0;
   state.sceneIndex = mode === "unit" ? state.unitIndex : 0;
   state.worldMission = mode === "all" ? createWorldMission() : null;
