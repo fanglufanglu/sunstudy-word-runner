@@ -606,6 +606,33 @@ h1 {
   border: 2px dashed rgba(255,107,74,0.78);
 }
 
+.scene-prop.patrol {
+  width: 96px;
+  height: 44px;
+  border-radius: 999px;
+  color: #ffe8e2;
+  background:
+    radial-gradient(circle at 50% 120%, rgba(255,107,74,0.48) 0 24px, transparent 25px),
+    linear-gradient(180deg, rgba(86, 38, 46, 0.72), rgba(21, 31, 42, 0.92));
+  border: 2px solid rgba(255,107,74,0.72);
+  box-shadow: 0 0 28px rgba(255,107,74,0.36);
+  animation: patrol-scan 1.4s ease-in-out infinite;
+}
+
+.scene-prop.patrol::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,107,74,0.18) 0 38%, transparent 39%);
+  border: 1px solid rgba(255,107,74,0.24);
+  pointer-events: none;
+}
+
 .scene-prop.done {
   opacity: 0;
 }
@@ -613,6 +640,11 @@ h1 {
 @keyframes prop-pulse {
   0%, 100% { scale: 1; }
   50% { scale: 1.08; }
+}
+
+@keyframes patrol-scan {
+  0%, 100% { filter: brightness(0.92); }
+  50% { filter: brightness(1.22); }
 }
 
 .scene-player {
@@ -1260,6 +1292,15 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     width: 88px;
     min-height: 56px;
   }
+  .scene-prop.patrol {
+    width: 74px;
+    height: 36px;
+    font-size: 0.62rem;
+  }
+  .scene-prop.patrol::after {
+    width: 86px;
+    height: 86px;
+  }
   .scene-player { scale: 0.78; }
   .unit-row {
     gap: 6px;
@@ -1318,4 +1359,12 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .intel-node,
   .shortcut-node,
   .decoy-node { width: 80px; }
+  .scene-prop.patrol {
+    width: 66px;
+    height: 32px;
+  }
+  .scene-prop.patrol::after {
+    width: 76px;
+    height: 76px;
+  }
 }

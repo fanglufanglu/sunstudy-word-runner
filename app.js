@@ -138,12 +138,14 @@ const state = {
   targetY: null,
   sceneObjects: [],
   sceneProps: [],
+  sceneHazards: [],
   sceneMission: null,
   taskPlan: null,
   taskGoal: 0,
   taskDone: 0,
   missionStep: 1,
   alertLevel: 0,
+  hazardCooldown: 0,
   currentObjectId: null,
   nearObjectId: null,
   nearObjectSince: 0,
@@ -251,7 +253,7 @@ function renderBattle() {
   if (!state.sceneObjects.length) prepareSceneObjects();
   arena.className = `explore-scene skin-${state.sceneMission?.skin || "campus"}`;
   $("battleZone").textContent = state.mode === "unit" && unit ? `${unit.name} · ${state.sceneMission?.title || unit.title}` : state.mode === "all" ? `城市大世界 Lv.${equipmentLevel()} · ${state.sceneMission?.title || "委托"}` : `错题训练场 · ${state.sceneMission?.title || "训练"}`;
-  $("battleLog").textContent = state.battleLog || "点击地面移动，完成场景任务链";
+  $("battleLog").textContent = state.battleLog || "拖动移动，避开巡逻扫描";
   place($("scenePlayer"), { x: state.playerX, y: state.playerY });
   renderSceneObjectButtons();
   renderSceneProps();
@@ -260,7 +262,6 @@ function renderBattle() {
 function renderSceneObjectButtons() {
   const container = $("sceneObjects");
   container.innerHTML = "";
-  renderMissionTrack(container);
   state.sceneObjects.filter(isObjectVisible).forEach((object) => {
     const button = document.createElement("button");
     const near = distanceTo(object) < objectInteractRadius;
@@ -356,6 +357,7 @@ function prepareSceneObjects() {
     }
   ];
   state.sceneProps = createSceneProps(layout);
+  state.sceneHazards = createSceneHazards();
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
@@ -373,6 +375,36 @@ function createSceneProps(layout) {
   return base;
 }
 
+function createSceneHazards() {
+  const baseY = 28 + (state.sceneSkinIndex % 3) * 8;
+  return [
+    {
+      id: `patrol-a-${state.sceneSkinIndex}`,
+      label: "巡逻扫描",
+      x: 38,
+      y: baseY + 18,
+      axis: "x",
+      min: 24,
+      max: 78,
+      speed: 0.18 + (state.sceneSkinIndex % 3) * 0.035,
+      dir: 1,
+      radius: 10
+    },
+    {
+      id: `patrol-b-${state.sceneSkinIndex}`,
+      label: "警戒灯",
+      x: 70,
+      y: 62,
+      axis: "y",
+      min: 34,
+      max: 76,
+      speed: 0.14 + (state.sceneSkinIndex % 2) * 0.04,
+      dir: -1,
+      radius: 9
+    }
+  ];
+}
+
 function renderSceneProps() {
   const container = $("sceneProps");
   container.innerHTML = "";
@@ -381,6 +413,13 @@ function renderSceneProps() {
     el.className = `scene-prop ${prop.kind} ${prop.done ? "done" : ""}`;
     el.textContent = prop.label;
     place(el, prop);
+    container.appendChild(el);
+  });
+  state.sceneHazards.forEach((hazard) => {
+    const el = document.createElement("span");
+    el.className = "scene-prop patrol";
+    el.textContent = hazard.label;
+    place(el, hazard);
     container.appendChild(el);
   });
 }
@@ -428,12 +467,12 @@ function activeMissionObjects() {
 function missionInstruction() {
   const plan = state.taskPlan;
   if (!plan) return "移动角色，执行当前任务";
-  if (state.taskDone >= state.taskGoal) return `最终目标：前往${plan.finalLabel}，用单词验证完成突围`;
+  if (state.taskDone >= state.taskGoal) return `最终目标：避开巡逻，接近${plan.finalLabel}完成突围`;
   if (state.missionStep <= 1) {
     const first = state.sceneObjects.find((item) => item.phase === 1 && !item.done);
-    return first ? `第一步：先${first.action}${first.label}，拿到任务方向` : `第一步：获取${plan.goalLabel}`;
+    return first ? `第一步：躲开扫描，先${first.action}${first.label}` : `第一步：获取${plan.goalLabel}`;
   }
-  return `第二步：选择路线，真线索更稳，捷径更快但会升高警戒`;
+  return `第二步：自己选路线，真线索稳，捷径快但警戒高`;
 }
 
 function setSceneTarget(x, y) {
@@ -568,8 +607,10 @@ function refreshSceneIfNeeded() {
   state.nearObjectId = null;
   state.nearObjectSince = 0;
   state.missionStep = 1;
+  state.sceneHazards = [];
+  state.hazardCooldown = 0;
   prepareSceneObjects();
-  state.battleLog = "进入新的街区，寻找下一组目标";
+  state.battleLog = "进入新区域，避开巡逻扫描";
 }
 
 function save() {
@@ -806,7 +847,41 @@ function updateSceneMovement() {
   }
   state.distance += (dx || dy || state.targetX !== null) ? 0.22 : 0;
   checkSceneProps();
+  updateSceneHazards();
   checkAutoInteract();
+}
+
+function updateSceneHazards() {
+  const now = Date.now();
+  state.sceneHazards.forEach((hazard) => {
+    if (hazard.axis === "x") {
+      hazard.x += hazard.speed * hazard.dir;
+      if (hazard.x < hazard.min || hazard.x > hazard.max) {
+        hazard.x = Math.max(hazard.min, Math.min(hazard.max, hazard.x));
+        hazard.dir *= -1;
+      }
+    } else {
+      hazard.y += hazard.speed * hazard.dir;
+      if (hazard.y < hazard.min || hazard.y > hazard.max) {
+        hazard.y = Math.max(hazard.min, Math.min(hazard.max, hazard.y));
+        hazard.dir *= -1;
+      }
+    }
+    const caught = Math.hypot(state.playerX - hazard.x, state.playerY - hazard.y) < hazard.radius;
+    if (caught && now > state.hazardCooldown) {
+      state.hazardCooldown = now + 1450;
+      state.alertLevel += 1;
+      state.streak = 0;
+      state.seconds = Math.max(8, state.seconds - 3);
+      state.score = Math.max(0, state.score - 16);
+      if (state.alertLevel % 3 === 0) state.hearts -= 1;
+      state.battleLog = state.alertLevel % 3 === 0 ? "被巡逻扫描锁定，体力 -1" : "进入扫描范围，时间 -3s";
+      $("gameStage").classList.add("shake");
+      window.setTimeout(() => $("gameStage").classList.remove("shake"), 340);
+      save();
+      if (state.hearts <= 0) showEnergyPanel();
+    }
+  });
 }
 
 function nearestIncompleteObject(maxDistance = objectInteractRadius) {
@@ -1065,7 +1140,7 @@ function start(mode = "unit") {
   state.hearts = 3;
   state.revives = 0;
   state.outOfEnergy = false;
-  state.battleLog = "点击地面移动，调查发光目标";
+  state.battleLog = "拖动移动，避开巡逻扫描";
   state.playerX = 16;
   state.playerY = 22;
   state.targetX = null;
@@ -1073,6 +1148,7 @@ function start(mode = "unit") {
   state.sceneSkinIndex = mode === "unit" ? state.unitIndex : 0;
   state.sceneObjects = [];
   state.sceneProps = [];
+  state.sceneHazards = [];
   state.sceneMission = null;
   state.taskPlan = null;
   state.taskGoal = 0;
@@ -1085,6 +1161,7 @@ function start(mode = "unit") {
   state.touchMoving = false;
   state.alertCooldown = 0;
   state.alertLevel = 0;
+  state.hazardCooldown = 0;
   state.distance = 0;
   state.sceneIndex = mode === "unit" ? state.unitIndex : 0;
   state.worldMission = mode === "all" ? createWorldMission() : null;
@@ -1173,7 +1250,7 @@ function moveTowardEvent(event) {
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
-  state.battleLog = "沿指示路线移动";
+  state.battleLog = "正在移动，注意巡逻扫描";
 }
 
 exploreScene.addEventListener("pointerdown", (event) => {
