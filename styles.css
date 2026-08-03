@@ -329,6 +329,76 @@ h1 {
   box-shadow: 0 5px 0 rgba(0,0,0,0.16);
 }
 
+.scene-object.locked {
+  opacity: 0.62;
+  border-style: dashed;
+  filter: saturate(0.55);
+}
+
+.scene-object.ready {
+  animation: ready-glow 1.25s ease-in-out infinite;
+}
+
+.task-item {
+  width: 82px;
+  min-height: 62px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 112%, rgba(50, 215, 154, 0.42) 0 18%, transparent 19%),
+    linear-gradient(180deg, rgba(36, 64, 82, 0.96), rgba(13, 31, 45, 0.98));
+  animation: task-float 2.2s ease-in-out infinite;
+}
+
+.task-item::before {
+  left: 18px;
+  right: 18px;
+  height: 4px;
+}
+
+.task-item strong {
+  font-size: 0.78rem;
+}
+
+.task-item span {
+  font-size: 0.68rem;
+}
+
+.battery-cell { border-color: rgba(50, 215, 154, 0.76); }
+.key-card { border-color: rgba(96, 165, 250, 0.78); }
+.archive-chip { border-color: rgba(246, 200, 95, 0.78); }
+.signal-node { border-color: rgba(132, 204, 22, 0.78); }
+
+.battery-cell::after,
+.key-card::after,
+.archive-chip::after,
+.signal-node::after {
+  bottom: -18px;
+  opacity: 0.9;
+}
+
+.final-node {
+  min-height: 84px;
+}
+
+.final-node.ready::after {
+  background: rgba(96, 165, 250, 0.46);
+  filter: blur(4px);
+}
+
+.side-node {
+  border-color: rgba(50, 215, 154, 0.7);
+}
+
+@keyframes task-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -4px; }
+}
+
+@keyframes ready-glow {
+  0%, 100% { box-shadow: 0 8px 0 rgba(0,0,0,0.22), 0 0 22px rgba(96,165,250,0.22); }
+  50% { box-shadow: 0 8px 0 rgba(0,0,0,0.22), 0 0 34px rgba(50,215,154,0.62); }
+}
+
 .terminal,
 .billboard,
 .kiosk { border-color: rgba(96,165,250,0.7); }

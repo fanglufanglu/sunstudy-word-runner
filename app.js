@@ -35,6 +35,48 @@ const objectCatalog = [
   { label: "中继器", action: "连接", className: "relay", type: "meaning" },
   { label: "无人机台", action: "接管", className: "drone-pad", type: "listen" }
 ];
+const taskPlans = [
+  {
+    title: "备用电源",
+    goalLabel: "能量块",
+    collectAction: "拾取",
+    itemClass: "task-item battery-cell",
+    finalLabel: "电梯终端",
+    finalAction: "启动",
+    finalClass: "terminal final-node",
+    success: "备用电源接通，电梯终端可以启动"
+  },
+  {
+    title: "门禁卡组",
+    goalLabel: "门禁卡",
+    collectAction: "回收",
+    itemClass: "task-item key-card",
+    finalLabel: "门禁",
+    finalAction: "开门",
+    finalClass: "gate-lock final-node",
+    success: "门禁卡组已凑齐，出口门禁等待验证"
+  },
+  {
+    title: "散落档案",
+    goalLabel: "档案页",
+    collectAction: "找回",
+    itemClass: "task-item archive-chip",
+    finalLabel: "档案柜",
+    finalAction: "归档",
+    finalClass: "archive final-node",
+    success: "档案页已找回，去档案柜完成归档"
+  },
+  {
+    title: "信号校准",
+    goalLabel: "信号源",
+    collectAction: "校准",
+    itemClass: "task-item signal-node",
+    finalLabel: "中继器",
+    finalAction: "连接",
+    finalClass: "relay final-node",
+    success: "信号源稳定，中继器可以连接"
+  }
+];
 const sceneLayouts = [
   [{ x: 24, y: 68 }, { x: 58, y: 76 }, { x: 82, y: 36 }, { x: 42, y: 38 }],
   [{ x: 18, y: 34 }, { x: 35, y: 76 }, { x: 67, y: 55 }, { x: 84, y: 74 }, { x: 55, y: 24 }],
@@ -72,6 +114,9 @@ const state = {
   sceneObjects: [],
   sceneProps: [],
   sceneMission: null,
+  taskPlan: null,
+  taskGoal: 0,
+  taskDone: 0,
   currentObjectId: null,
   nearObjectId: null,
   nearObjectSince: 0,
@@ -178,7 +223,7 @@ function renderBattle() {
   if (!state.sceneObjects.length) prepareSceneObjects();
   arena.className = `explore-scene skin-${state.sceneMission?.skin || "campus"}`;
   $("battleZone").textContent = state.mode === "unit" && unit ? `${unit.name} · ${state.sceneMission?.title || unit.title}` : state.mode === "all" ? `城市大世界 Lv.${equipmentLevel()} · ${state.sceneMission?.title || "委托"}` : `错题训练场 · ${state.sceneMission?.title || "训练"}`;
-  $("battleLog").textContent = state.battleLog || "点击地面移动，靠近发光目标后调查";
+  $("battleLog").textContent = state.battleLog || "点击地面移动，完成场景任务链";
   place($("scenePlayer"), { x: state.playerX, y: state.playerY });
   renderSceneObjectButtons();
   renderSceneProps();
@@ -190,15 +235,19 @@ function renderSceneObjectButtons() {
   state.sceneObjects.forEach((object) => {
     const button = document.createElement("button");
     const near = distanceTo(object) < 13;
+    const locked = isObjectLocked(object);
+    const status = object.done ? "完成" : locked ? `缺 ${state.taskGoal - state.taskDone}` : object.action;
     button.type = "button";
     button.className = `scene-object ${object.className}`;
     button.dataset.object = object.id;
     button.disabled = object.done;
-    button.innerHTML = `<strong>${object.label}</strong><span>${object.done ? "完成" : object.action}</span>`;
+    button.innerHTML = `<strong>${object.label}</strong><span>${status}</span>`;
     place(button, object);
     button.classList.toggle("near", near && !object.done);
     button.classList.toggle("done", object.done);
-    button.title = object.done ? "已完成" : near ? `调查：${object.word.word}` : "靠近后调查";
+    button.classList.toggle("locked", locked);
+    button.classList.toggle("ready", object.role === "final" && !locked && !object.done);
+    button.title = object.done ? "已完成" : locked ? `还差 ${state.taskGoal - state.taskDone} 个${state.taskPlan?.goalLabel || "目标"}` : object.role === "final" ? "关键节点：完成单词验证" : "靠近后完成任务动作";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       interactObject(object.id);
@@ -210,23 +259,58 @@ function renderSceneObjectButtons() {
 function prepareSceneObjects() {
   const missionIndex = (state.sceneSkinIndex + Math.floor(Math.random() * sceneMissions.length)) % sceneMissions.length;
   const layout = sceneLayouts[state.sceneSkinIndex % sceneLayouts.length];
-  const count = Math.min(layout.length, state.mode === "unit" ? 4 + (state.sceneSkinIndex % 2) : 5);
-  const catalog = shuffle(objectCatalog).slice(0, count);
+  const shuffledLayout = shuffle(layout);
+  const plan = taskPlans[state.sceneSkinIndex % taskPlans.length];
+  const taskGoal = Math.min(3, Math.max(2, shuffledLayout.length - 1));
+  const finalPoint = shuffledLayout[taskGoal] || shuffledLayout[shuffledLayout.length - 1];
   state.sceneMission = sceneMissions[missionIndex];
-  state.sceneObjects = catalog.map((template, index) => ({
-    ...template,
-    id: `target-${state.sceneSkinIndex}-${index}`,
-    word: pickWord(),
+  state.taskPlan = plan;
+  state.taskGoal = taskGoal;
+  state.taskDone = 0;
+  const taskObjects = shuffledLayout.slice(0, taskGoal).map((point, index) => ({
+    id: `task-${state.sceneSkinIndex}-${index}`,
+    label: `${plan.goalLabel} ${index + 1}`,
+    action: plan.collectAction,
+    className: plan.itemClass,
+    role: "task",
     done: false,
-    type: index === count - 1 ? challengeTypes[state.sceneSkinIndex % challengeTypes.length] : template.type,
-    x: layout[index].x,
-    y: layout[index].y
+    x: point.x,
+    y: point.y
   }));
+  const sideTemplate = shuffle(objectCatalog).find((item) => item.className !== plan.finalClass) || objectCatalog[0];
+  const sidePoint = shuffledLayout[taskGoal + 1];
+  const sideObject = sidePoint ? [{
+    ...sideTemplate,
+    id: `side-${state.sceneSkinIndex}`,
+    label: "补给箱",
+    action: "开启",
+    className: "toolbox side-node",
+    role: "side",
+    done: false,
+    x: sidePoint.x,
+    y: sidePoint.y
+  }] : [];
+  state.sceneObjects = [
+    ...taskObjects,
+    ...sideObject,
+    {
+      id: `final-${state.sceneSkinIndex}`,
+      label: plan.finalLabel,
+      action: plan.finalAction,
+      className: plan.finalClass,
+      role: "final",
+      word: pickWord(),
+      done: false,
+      type: challengeTypes[state.sceneSkinIndex % challengeTypes.length],
+      x: finalPoint.x,
+      y: finalPoint.y
+    }
+  ];
   state.sceneProps = createSceneProps(layout);
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
-  state.battleLog = state.sceneMission.brief;
+  state.battleLog = `${state.sceneMission.title}：${plan.collectAction} ${taskGoal} 个${plan.goalLabel}`;
 }
 
 function createSceneProps(layout) {
@@ -256,6 +340,10 @@ function distanceTo(object) {
   return Math.hypot(state.playerX - object.x, state.playerY - object.y);
 }
 
+function isObjectLocked(object) {
+  return object.role === "final" && state.taskDone < state.taskGoal;
+}
+
 function setSceneTarget(x, y) {
   state.targetX = Math.max(6, Math.min(94, x));
   state.targetY = Math.max(10, Math.min(84, y));
@@ -276,14 +364,59 @@ function interactObject(id) {
   if (distanceTo(object) > 13) {
     setSceneTarget(object.x, Math.max(12, object.y - 5));
     state.currentObjectId = id;
-    state.battleLog = `正在接近${object.label}`;
+    state.battleLog = `前往${object.label}`;
+    renderBattle();
+    return;
+  }
+  if (object.role === "task") {
+    completeTaskObject(object);
+    return;
+  }
+  if (object.role === "side") {
+    completeSideObject(object);
+    return;
+  }
+  if (isObjectLocked(object)) {
+    const missing = Math.max(0, state.taskGoal - state.taskDone);
+    state.battleLog = `${object.label}还没解锁，还差 ${missing} 个${state.taskPlan?.goalLabel || "目标"}`;
+    state.autoInteractDelayUntil = Date.now() + 900;
     renderBattle();
     return;
   }
   state.currentObjectId = id;
   state.challengeType = object.type;
-  state.battleLog = `${object.label}启动，识别信号词`;
+  state.battleLog = `${object.label}已启动，完成本幕单词验证`;
   openGate(object.word, object.type);
+}
+
+function completeTaskObject(object) {
+  object.done = true;
+  state.taskDone += 1;
+  state.score += 22;
+  state.stars += 1;
+  state.autoInteractDelayUntil = Date.now() + 520;
+  if (state.taskDone >= state.taskGoal) {
+    state.seconds += 5;
+    state.score += 18;
+    state.battleLog = state.taskPlan?.success || "目标集齐，关键节点已开放";
+  } else {
+    state.battleLog = `${object.label}完成，进度 ${state.taskDone}/${state.taskGoal}`;
+  }
+  save();
+  renderHud();
+  renderBattle();
+}
+
+function completeSideObject(object) {
+  object.done = true;
+  state.score += 14;
+  state.seconds += 4;
+  if (state.hearts > 0 && state.hearts < 3) state.hearts += 1;
+  state.autoInteractDelayUntil = Date.now() + 620;
+  state.battleLog = "补给箱开启，获得时间补给";
+  save();
+  renderHud();
+  renderBattle();
 }
 
 function interactNearestObject() {
@@ -297,11 +430,11 @@ function completeSceneObject() {
   const object = state.sceneObjects.find((item) => item.id === state.currentObjectId);
   if (!object) return;
   object.done = true;
-  state.battleLog = `${object.label}完成，继续调查下一个目标`;
+  state.battleLog = `${object.label}完成，任务链推进`;
 }
 
 function refreshSceneIfNeeded() {
-  if (state.sceneObjects.some((item) => !item.done)) return;
+  if (state.sceneObjects.some((item) => !item.done && item.role !== "side")) return;
   state.sceneSkinIndex += 1;
   state.sceneIndex = state.sceneSkinIndex % unlockedSceneCount();
   state.playerX = 14;
@@ -469,6 +602,13 @@ function renderHud() {
   $("score").textContent = state.score;
   $("streak").textContent = state.streak;
   $("timer").textContent = state.seconds + "s";
+  if (state.running && state.taskPlan && $("battleLog")) {
+    const finalReady = state.taskDone >= state.taskGoal;
+    const text = finalReady
+      ? `${state.taskPlan.finalLabel}已开放，前往完成单词验证`
+      : `${state.taskPlan.collectAction}${state.taskPlan.goalLabel} ${state.taskDone}/${state.taskGoal}`;
+    if (!state.paused && !state.battleLog) $("battleLog").textContent = text;
+  }
   $("starCount").textContent = `${state.stars}/${state.progress.coins || 0}`;
   $("heartCount").textContent = state.hearts;
   renderEnergyState();
@@ -563,7 +703,9 @@ function checkAutoInteract() {
   if (state.nearObjectId !== object.id) {
     state.nearObjectId = object.id;
     state.nearObjectSince = Date.now();
-    state.battleLog = `发现${object.label}，正在读取信号`;
+    state.battleLog = object.role === "final" && isObjectLocked(object)
+      ? `${object.label}暂未开放，先完成前置任务`
+      : `接近${object.label}`;
     return;
   }
   if (Date.now() - state.nearObjectSince > 360) {
