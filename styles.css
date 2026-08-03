@@ -224,6 +224,21 @@ h1 {
   pointer-events: none;
 }
 
+.scene-objects,
+.scene-props {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-objects {
+  z-index: 3;
+}
+
+.scene-props {
+  z-index: 2;
+  pointer-events: none;
+}
+
 .skin-metro {
   background:
     linear-gradient(90deg, rgba(255,255,255,0.13) 0 2px, transparent 2px 84px),
@@ -272,6 +287,15 @@ h1 {
   transform: translate(-50%, 50%);
 }
 
+.scene-object::before {
+  content: "";
+  position: absolute;
+  inset: 8px 10px auto 10px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .scene-object::after {
   content: "";
   position: absolute;
@@ -305,10 +329,91 @@ h1 {
   box-shadow: 0 5px 0 rgba(0,0,0,0.16);
 }
 
-.terminal { border-color: rgba(96,165,250,0.7); }
-.locker { border-color: rgba(50,215,154,0.65); }
-.gate-lock { border-color: rgba(255,107,74,0.68); }
-.signal-box { border-color: rgba(246,200,95,0.7); }
+.terminal,
+.billboard,
+.kiosk { border-color: rgba(96,165,250,0.7); }
+.locker,
+.archive,
+.bookcase { border-color: rgba(50,215,154,0.65); }
+.gate-lock,
+.drone-pad { border-color: rgba(255,107,74,0.68); }
+.signal-box,
+.toolbox,
+.lab,
+.relay { border-color: rgba(246,200,95,0.7); }
+
+.archive,
+.bookcase {
+  width: 126px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 8px, transparent 8px 18px),
+    linear-gradient(180deg, rgba(42, 67, 88, 0.95), rgba(16, 34, 48, 0.96));
+}
+
+.billboard,
+.kiosk {
+  min-height: 86px;
+  border-radius: 4px;
+}
+
+.lab,
+.toolbox {
+  width: 104px;
+  min-height: 60px;
+  border-radius: 6px 6px 12px 12px;
+}
+
+.relay,
+.drone-pad {
+  border-radius: 50% 50% 8px 8px;
+}
+
+.scene-prop {
+  position: absolute;
+  min-width: 62px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #eaf7ff;
+  font-size: 0.72rem;
+  font-weight: 1000;
+  transform: translate(-50%, 50%);
+}
+
+.scene-prop.bonus {
+  background: rgba(50, 215, 154, 0.24);
+  border: 2px solid rgba(50, 215, 154, 0.7);
+  box-shadow: 0 0 20px rgba(50, 215, 154, 0.38);
+  animation: prop-pulse 1.8s ease-in-out infinite;
+}
+
+.scene-prop.clue {
+  background: rgba(96, 165, 250, 0.24);
+  border: 2px solid rgba(96, 165, 250, 0.7);
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.38);
+}
+
+.scene-prop.alert {
+  width: 118px;
+  height: 58px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.86);
+  background:
+    repeating-linear-gradient(135deg, rgba(255,107,74,0.22) 0 8px, rgba(255,107,74,0.08) 8px 16px),
+    rgba(120, 43, 47, 0.28);
+  border: 2px dashed rgba(255,107,74,0.78);
+}
+
+.scene-prop.done {
+  opacity: 0;
+}
+
+@keyframes prop-pulse {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.08; }
+}
 
 .scene-player {
   position: absolute;

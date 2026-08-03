@@ -13,13 +13,35 @@ const focusMeanings = window.FOCUS_MEANINGS || {};
 const focusMeaningByKey = new Map(Object.entries(focusMeanings).map(([word, meaning]) => [normalizeWord(word), meaning]));
 const wordByKey = new Map((window.WORDS || []).map((item) => [normalizeWord(item.word), item]));
 const worldGroups = [...new Set((window.WORDS || []).map((item) => item.group).filter(Boolean))];
-const sceneObjectTemplates = [
-  { id: "terminal", label: "终端机", action: "破解", x: 72, y: 72, type: "spell" },
-  { id: "locker", label: "储物柜", action: "搜索", x: 22, y: 68, type: "meaning" },
-  { id: "gate", label: "门禁", action: "解锁", x: 84, y: 30, type: "listen" },
-  { id: "signal", label: "信号箱", action: "校准", x: 43, y: 42, type: "meaning" }
+const sceneMissions = [
+  { title: "档案潜入", brief: "进入教学楼，恢复散落的词汇档案", skin: "campus" },
+  { title: "地铁追踪", brief: "穿过换乘站，截获下一批信号词", skin: "metro" },
+  { title: "天台校准", brief: "避开警戒灯，修复屋顶信号节点", skin: "roof" },
+  { title: "市集调查", brief: "在人群街区寻找隐藏线索", skin: "market" },
+  { title: "图书馆夜巡", brief: "穿过书架区，解开封存词卡", skin: "library" },
+  { title: "车站终局", brief: "启动出口系统，完成本轮转移", skin: "station" }
 ];
-const sceneSkins = ["campus", "metro", "roof", "market", "library", "station"];
+const objectCatalog = [
+  { label: "终端机", action: "破解", className: "terminal", type: "spell" },
+  { label: "储物柜", action: "搜索", className: "locker", type: "meaning" },
+  { label: "门禁", action: "解锁", className: "gate-lock", type: "listen" },
+  { label: "信号箱", action: "校准", className: "signal-box", type: "meaning" },
+  { label: "档案柜", action: "翻找", className: "archive", type: "meaning" },
+  { label: "公告屏", action: "读取", className: "billboard", type: "listen" },
+  { label: "售票机", action: "验证", className: "kiosk", type: "spell" },
+  { label: "实验台", action: "分析", className: "lab", type: "meaning" },
+  { label: "工具箱", action: "组装", className: "toolbox", type: "spell" },
+  { label: "书架", action: "检索", className: "bookcase", type: "listen" },
+  { label: "中继器", action: "连接", className: "relay", type: "meaning" },
+  { label: "无人机台", action: "接管", className: "drone-pad", type: "listen" }
+];
+const sceneLayouts = [
+  [{ x: 24, y: 68 }, { x: 58, y: 76 }, { x: 82, y: 36 }, { x: 42, y: 38 }],
+  [{ x: 18, y: 34 }, { x: 35, y: 76 }, { x: 67, y: 55 }, { x: 84, y: 74 }, { x: 55, y: 24 }],
+  [{ x: 28, y: 78 }, { x: 78, y: 76 }, { x: 46, y: 52 }, { x: 22, y: 24 }, { x: 82, y: 27 }],
+  [{ x: 18, y: 72 }, { x: 50, y: 78 }, { x: 75, y: 57 }, { x: 36, y: 30 }, { x: 86, y: 24 }]
+];
+const challengeTypes = ["meaning", "listen", "spell"];
 
 const state = {
   running: false,
@@ -46,8 +68,11 @@ const state = {
   targetX: null,
   targetY: null,
   sceneObjects: [],
+  sceneProps: [],
+  sceneMission: null,
   currentObjectId: null,
   sceneSkinIndex: 0,
+  alertCooldown: 0,
   voices: [],
   keys: new Set(),
   loopId: null,
@@ -146,35 +171,78 @@ function renderBattle() {
   const arena = $("exploreScene");
   if (!arena) return;
   if (!state.sceneObjects.length) prepareSceneObjects();
-  arena.className = `explore-scene skin-${sceneSkins[state.sceneSkinIndex % sceneSkins.length]}`;
-  $("battleZone").textContent = state.mode === "unit" && unit ? `${unit.name} · ${unit.title}` : state.mode === "all" ? `城市大世界 Lv.${equipmentLevel()}` : "错题训练场";
+  arena.className = `explore-scene skin-${state.sceneMission?.skin || "campus"}`;
+  $("battleZone").textContent = state.mode === "unit" && unit ? `${unit.name} · ${state.sceneMission?.title || unit.title}` : state.mode === "all" ? `城市大世界 Lv.${equipmentLevel()} · ${state.sceneMission?.title || "委托"}` : `错题训练场 · ${state.sceneMission?.title || "训练"}`;
   $("battleLog").textContent = state.battleLog || "点击地面移动，靠近发光目标后调查";
   place($("scenePlayer"), { x: state.playerX, y: state.playerY });
-  sceneObjectTemplates.forEach((template) => {
-    const object = state.sceneObjects.find((item) => item.id === template.id);
-    const button = document.querySelector(`.scene-object[data-object="${template.id}"]`);
-    if (!object || !button) return;
+  renderSceneObjectButtons();
+  renderSceneProps();
+}
+
+function renderSceneObjectButtons() {
+  const container = $("sceneObjects");
+  container.innerHTML = "";
+  state.sceneObjects.forEach((object) => {
+    const button = document.createElement("button");
     const near = distanceTo(object) < 13;
+    button.type = "button";
+    button.className = `scene-object ${object.className}`;
+    button.dataset.object = object.id;
+    button.disabled = object.done;
+    button.innerHTML = `<strong>${object.label}</strong><span>${object.done ? "完成" : object.action}</span>`;
     place(button, object);
     button.classList.toggle("near", near && !object.done);
     button.classList.toggle("done", object.done);
-    button.disabled = object.done;
-    button.querySelector("strong").textContent = object.label;
-    button.querySelector("span").textContent = object.done ? "完成" : object.action;
     button.title = object.done ? "已完成" : near ? `调查：${object.word.word}` : "靠近后调查";
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      interactObject(object.id);
+    });
+    container.appendChild(button);
   });
 }
 
 function prepareSceneObjects() {
-  state.sceneObjects = sceneObjectTemplates.map((template, index) => ({
+  const missionIndex = (state.sceneSkinIndex + Math.floor(Math.random() * sceneMissions.length)) % sceneMissions.length;
+  const layout = sceneLayouts[state.sceneSkinIndex % sceneLayouts.length];
+  const count = Math.min(layout.length, state.mode === "unit" ? 4 + (state.sceneSkinIndex % 2) : 5);
+  const catalog = shuffle(objectCatalog).slice(0, count);
+  state.sceneMission = sceneMissions[missionIndex];
+  state.sceneObjects = catalog.map((template, index) => ({
     ...template,
+    id: `target-${state.sceneSkinIndex}-${index}`,
     word: pickWord(),
     done: false,
-    x: Math.max(12, Math.min(88, template.x + Math.sin((state.sceneSkinIndex + 1) * (index + 1)) * 4)),
-    y: Math.max(18, Math.min(78, template.y + Math.cos((state.sceneSkinIndex + 2) * (index + 1)) * 5))
+    type: index === count - 1 ? challengeTypes[state.sceneSkinIndex % challengeTypes.length] : template.type,
+    x: layout[index].x,
+    y: layout[index].y
   }));
+  state.sceneProps = createSceneProps(layout);
   state.currentObjectId = null;
-  state.battleLog = state.mode === "unit" ? "探索区域，逐个调查发光目标" : "接近目标，完成城市委托";
+  state.battleLog = state.sceneMission.brief;
+}
+
+function createSceneProps(layout) {
+  const base = [
+    { id: `bonus-${state.sceneSkinIndex}`, kind: "bonus", label: "补给", x: 14 + (state.sceneSkinIndex % 3) * 8, y: 18 + (state.sceneSkinIndex % 2) * 10, done: false },
+    { id: `alert-${state.sceneSkinIndex}`, kind: "alert", label: "警戒区", x: 58 + (state.sceneSkinIndex % 2) * 14, y: 26 + (state.sceneSkinIndex % 3) * 8, done: false }
+  ];
+  if (layout.length > 4) {
+    base.push({ id: `clue-${state.sceneSkinIndex}`, kind: "clue", label: "线索", x: 88, y: 64, done: false });
+  }
+  return base;
+}
+
+function renderSceneProps() {
+  const container = $("sceneProps");
+  container.innerHTML = "";
+  state.sceneProps.forEach((prop) => {
+    const el = document.createElement("span");
+    el.className = `scene-prop ${prop.kind} ${prop.done ? "done" : ""}`;
+    el.textContent = prop.label;
+    place(el, prop);
+    container.appendChild(el);
+  });
 }
 
 function distanceTo(object) {
@@ -451,6 +519,35 @@ function updateSceneMovement() {
     $("scenePlayer")?.classList.remove("walking");
   }
   state.distance += (dx || dy || state.targetX !== null) ? 0.22 : 0;
+  checkSceneProps();
+}
+
+function checkSceneProps() {
+  const now = Date.now();
+  state.sceneProps.forEach((prop) => {
+    const close = Math.hypot(state.playerX - prop.x, state.playerY - prop.y);
+    if (prop.kind === "bonus" && !prop.done && close < 9) {
+      prop.done = true;
+      state.stars += 2;
+      state.score += 18;
+      state.battleLog = "获得补给，星星 +2";
+      save();
+    }
+    if (prop.kind === "clue" && !prop.done && close < 9) {
+      prop.done = true;
+      state.seconds += 8;
+      state.score += 12;
+      state.battleLog = "找到线索，时间 +8s";
+    }
+    if (prop.kind === "alert" && close < 12 && now > state.alertCooldown) {
+      state.alertCooldown = now + 2600;
+      state.streak = 0;
+      state.score = Math.max(0, state.score - 12);
+      state.battleLog = "触发警戒，连击中断";
+      $("gameStage").classList.add("shake");
+      window.setTimeout(() => $("gameStage").classList.remove("shake"), 340);
+    }
+  });
 }
 
 function openGate(word = pickWord(), forcedType = null) {
@@ -614,7 +711,10 @@ function start(mode = "unit") {
   state.targetY = null;
   state.sceneSkinIndex = mode === "unit" ? state.unitIndex : 0;
   state.sceneObjects = [];
+  state.sceneProps = [];
+  state.sceneMission = null;
   state.currentObjectId = null;
+  state.alertCooldown = 0;
   state.distance = 0;
   state.sceneIndex = mode === "unit" ? state.unitIndex : 0;
   state.worldMission = mode === "all" ? createWorldMission() : null;
@@ -696,12 +796,6 @@ exploreScene.addEventListener("pointerdown", (event) => {
   setSceneTarget(point.x, point.y);
   state.currentObjectId = null;
   state.battleLog = "正在移动，寻找可调查目标";
-});
-document.querySelectorAll(".scene-object").forEach((button) => {
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    interactObject(button.dataset.object);
-  });
 });
 window.addEventListener("keydown", (event) => {
   state.keys.add(event.code);
