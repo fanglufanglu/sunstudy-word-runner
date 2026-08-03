@@ -179,6 +179,7 @@ const state = {
   joystickY: 0,
   sceneSkinIndex: 0,
   alertCooldown: 0,
+  speechUnlocked: false,
   voices: [],
   keys: new Set(),
   loopId: null,
@@ -856,6 +857,30 @@ function speak(text = state.current?.word) {
   speechSynthesis.speak(utterance);
 }
 
+function unlockSpeech() {
+  if (state.speechUnlocked || !("speechSynthesis" in window)) return;
+  state.speechUnlocked = true;
+  const utterance = new SpeechSynthesisUtterance("ready");
+  utterance.volume = 0;
+  utterance.lang = "en-US";
+  const voice = englishVoice();
+  if (voice) utterance.voice = voice;
+  try {
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+  } catch (_) {
+    state.speechUnlocked = false;
+  }
+}
+
+function speakSoon(delay = 240) {
+  window.setTimeout(() => {
+    speak();
+    if ("speechSynthesis" in window && (speechSynthesis.pending || speechSynthesis.speaking)) return;
+    window.setTimeout(() => speak(), 420);
+  }, delay);
+}
+
 function scene() {
   const unit = activeUnit();
   if (state.mode === "unit" && unit) return scenes.find((item) => item.key === unit.scene || item.legacy === unit.scene) || scenes[0];
@@ -1195,7 +1220,7 @@ function openGate(word = pickWord(), forcedType = null) {
   $("wordGate").classList.toggle("boss", state.bossActive);
   $("wordGate").classList.add("show");
   renderHud();
-  window.setTimeout(() => speak(), 240);
+  speakSoon(240);
 }
 
 function makeChoices() {
@@ -1311,7 +1336,7 @@ function answerGate(button, correct) {
       state.gateDeadline = Date.now() + 12000;
       state.gateTimerId = window.setInterval(updateGateTimer, 250);
       renderGate();
-      speak();
+      speakSoon(120);
       renderHud();
       return;
     }
@@ -1503,15 +1528,15 @@ function showCards() {
   $("cardsDialog").showModal();
 }
 
-$("campaignModeBtn").addEventListener("click", () => start("unit"));
-$("worldModeBtn").addEventListener("click", () => start("all"));
-$("reviewModeBtn").addEventListener("click", () => start("review"));
-$("startBtn").addEventListener("click", () => state.mode === "unit" ? start("unit") : showHome());
-$("allModeBtn").addEventListener("click", () => start("all"));
-$("reviewBtn").addEventListener("click", () => start("review"));
+$("campaignModeBtn").addEventListener("click", () => { unlockSpeech(); start("unit"); });
+$("worldModeBtn").addEventListener("click", () => { unlockSpeech(); start("all"); });
+$("reviewModeBtn").addEventListener("click", () => { unlockSpeech(); start("review"); });
+$("startBtn").addEventListener("click", () => { unlockSpeech(); state.mode === "unit" ? start("unit") : showHome(); });
+$("allModeBtn").addEventListener("click", () => { unlockSpeech(); start("all"); });
+$("reviewBtn").addEventListener("click", () => { unlockSpeech(); start("review"); });
 $("cardBtn").addEventListener("click", showCards);
 $("closeCards").addEventListener("click", () => $("cardsDialog").close());
-$("speakBtn").addEventListener("click", () => speak());
+$("speakBtn").addEventListener("click", () => { unlockSpeech(); speak(); });
 $("skillBtn").addEventListener("click", activateDash);
 $("reviveBtn").addEventListener("click", reviveGame);
 $("energyRestartBtn").addEventListener("click", () => start(state.mode === "all" ? "all" : "unit"));
@@ -1599,6 +1624,8 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("keyup", (event) => {
   state.keys.delete(event.code);
 });
+window.addEventListener("pointerdown", unlockSpeech, { once: true, passive: true });
+window.addEventListener("touchstart", unlockSpeech, { once: true, passive: true });
 
 if ("speechSynthesis" in window) {
   refreshVoices();

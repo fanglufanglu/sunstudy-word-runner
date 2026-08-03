@@ -155,6 +155,7 @@ h1 {
 .game-stage.home-open .progress-row,
 .game-stage.home-open .unit-row,
 .game-stage.home-open .battle-arena,
+.game-stage.home-open .mobile-controls,
 .game-stage.home-open .action-row {
   display: none;
 }
@@ -976,6 +977,10 @@ h1 {
   display: none;
 }
 
+.mobile-controls {
+  display: none;
+}
+
 @keyframes scene-step {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
@@ -1488,7 +1493,7 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .score-board strong { font-size: 1rem; }
   .game-stage {
     min-height: 0;
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
     padding: 8px;
     gap: 7px;
     overflow: visible;
@@ -1512,13 +1517,13 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .mode-card { min-height: 106px; }
   .battle-arena {
     min-height: 0;
-    grid-template-rows: auto minmax(300px, 52svh);
+    grid-template-rows: auto minmax(230px, 36svh);
     padding: 7px;
     gap: 6px;
   }
   .explore-scene {
-    min-height: 300px;
-    height: min(52svh, 390px);
+    min-height: 230px;
+    height: min(36svh, 330px);
   }
   .scene-hud {
     min-height: 38px;
@@ -1576,13 +1581,10 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   }
   .scene-player { scale: 0.78; }
   .mobile-joystick {
-    position: absolute;
-    left: 14px;
-    bottom: 14px;
-    z-index: 7;
+    position: relative;
     display: block;
-    width: 92px;
-    height: 92px;
+    width: 68px;
+    height: 68px;
     border-radius: 50%;
     touch-action: none;
     background:
@@ -1596,8 +1598,8 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 42px;
-    height: 42px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     transform: translate(-50%, -50%);
     background: linear-gradient(180deg, rgba(50, 215, 154, 0.95), rgba(47, 124, 192, 0.95));
@@ -1606,14 +1608,11 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     pointer-events: none;
   }
   .skill-button {
-    position: absolute;
-    right: 16px;
-    bottom: 24px;
-    z-index: 7;
+    position: relative;
     display: grid;
     place-items: center;
-    width: 74px;
-    height: 74px;
+    width: 68px;
+    height: 68px;
     border-radius: 50%;
     color: #0b2634;
     background: linear-gradient(180deg, #f6c85f, #32d79a);
@@ -1622,6 +1621,29 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     font-size: 0.86rem;
     font-weight: 1000;
     touch-action: manipulation;
+  }
+  .mobile-controls {
+    position: relative;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 76px;
+    padding: 6px 12px;
+    border: 1px solid rgba(17, 24, 39, 0.12);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(10, 29, 46, 0.9), rgba(24, 49, 66, 0.86)),
+      rgba(10, 29, 46, 0.78);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .mobile-controls::after {
+    content: "摇杆移动 · 冲刺避险";
+    justify-self: center;
+    color: rgba(234, 247, 255, 0.72);
+    font-size: 0.72rem;
+    font-weight: 900;
   }
   .skill-button.cooling {
     color: rgba(234, 247, 255, 0.72);
@@ -1645,8 +1667,8 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .gate-choice { min-height: 48px; font-size: 0.9rem; }
   .energy-actions { grid-template-columns: 1fr; }
   .action-row {
-    position: sticky;
-    bottom: 0;
+    position: relative;
+    bottom: auto;
     z-index: 7;
     grid-template-columns: repeat(2, 1fr);
     gap: 7px;
@@ -1654,50 +1676,54 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     background: linear-gradient(180deg, transparent, rgba(232, 238, 245, 0.96) 22%);
   }
   .action-row button {
-    min-height: 40px;
+    min-height: 38px;
     font-size: 0.86rem;
   }
   .dock {
-    position: sticky;
-    bottom: 0;
+    position: relative;
+    bottom: auto;
     z-index: 6;
     grid-template-columns: repeat(6, minmax(52px, 1fr));
     gap: 3px;
-    padding: 7px 5px;
+    padding: 6px 5px;
     overflow-x: auto;
   }
   .dock div { min-width: 52px; }
-  .dock strong { font-size: 0.96rem; }
-  .dock span { font-size: 0.6rem; }
+  .dock strong { font-size: 0.88rem; }
+  .dock span { font-size: 0.56rem; }
 }
 
 @media (max-width: 390px) {
   .app-shell { padding: 6px; }
-  .battle-arena { grid-template-rows: auto minmax(280px, 48svh); }
+  .battle-arena { grid-template-rows: auto minmax(210px, 34svh); }
   .explore-scene {
-    min-height: 280px;
-    height: 48svh;
+    min-height: 210px;
+    height: 34svh;
   }
   .scene-object {
     width: 76px;
     min-height: 50px;
   }
   .mobile-joystick {
-    width: 78px;
-    height: 78px;
-    left: 10px;
-    bottom: 10px;
+    width: 62px;
+    height: 62px;
   }
   .joystick-knob {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
   .skill-button {
     width: 62px;
     height: 62px;
-    right: 10px;
-    bottom: 18px;
     font-size: 0.76rem;
+  }
+  .mobile-controls {
+    min-height: 68px;
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .mobile-controls::after {
+    font-size: 0.66rem;
   }
   .intel-node,
   .shortcut-node,
