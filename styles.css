@@ -788,6 +788,10 @@ h1 {
   animation: scene-step 0.34s ease-in-out infinite reverse;
 }
 
+.mobile-joystick {
+  display: none;
+}
+
 @keyframes scene-step {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
@@ -1363,6 +1367,36 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     height: 86px;
   }
   .scene-player { scale: 0.78; }
+  .mobile-joystick {
+    position: absolute;
+    left: 14px;
+    bottom: 14px;
+    z-index: 7;
+    display: block;
+    width: 92px;
+    height: 92px;
+    border-radius: 50%;
+    touch-action: none;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18) 0 26%, transparent 27%),
+      rgba(10, 29, 46, 0.46);
+    border: 2px solid rgba(234, 247, 255, 0.28);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.28), inset 0 0 18px rgba(96,165,250,0.18);
+    backdrop-filter: blur(6px);
+  }
+  .joystick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(180deg, rgba(50, 215, 154, 0.95), rgba(47, 124, 192, 0.95));
+    border: 2px solid rgba(255,255,255,0.78);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.28);
+    pointer-events: none;
+  }
   .unit-row {
     gap: 6px;
     padding-bottom: 3px;
@@ -1416,6 +1450,16 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .scene-object {
     width: 76px;
     min-height: 50px;
+  }
+  .mobile-joystick {
+    width: 78px;
+    height: 78px;
+    left: 10px;
+    bottom: 10px;
+  }
+  .joystick-knob {
+    width: 36px;
+    height: 36px;
   }
   .intel-node,
   .shortcut-node,

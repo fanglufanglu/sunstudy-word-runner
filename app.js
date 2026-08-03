@@ -152,6 +152,9 @@ const state = {
   nearObjectSince: 0,
   autoInteractDelayUntil: 0,
   touchMoving: false,
+  joystickActive: false,
+  joystickX: 0,
+  joystickY: 0,
   sceneSkinIndex: 0,
   alertCooldown: 0,
   voices: [],
@@ -820,6 +823,10 @@ function gameLoop() {
 function updateSceneMovement() {
   let dx = 0;
   let dy = 0;
+  if (state.joystickActive) {
+    dx += state.joystickX;
+    dy += state.joystickY;
+  }
   if (state.keys.has("ArrowRight") || state.keys.has("KeyD")) dx += 1;
   if (state.keys.has("ArrowLeft") || state.keys.has("KeyA")) dx -= 1;
   if (state.keys.has("ArrowUp") || state.keys.has("KeyW")) dy += 1;
@@ -1170,6 +1177,7 @@ function start(mode = "unit") {
   state.nearObjectSince = 0;
   state.autoInteractDelayUntil = 0;
   state.touchMoving = false;
+  resetJoystick();
   state.alertCooldown = 0;
   state.alertLevel = 0;
   state.hazardCooldown = 0;
@@ -1255,6 +1263,54 @@ $("reviveBtn").addEventListener("click", reviveGame);
 $("energyRestartBtn").addEventListener("click", () => start(state.mode === "all" ? "all" : "unit"));
 $("energyReviewBtn").addEventListener("click", () => start("review"));
 const exploreScene = $("exploreScene");
+const mobileJoystick = $("mobileJoystick");
+const joystickKnob = $("joystickKnob");
+
+function updateJoystick(event) {
+  const rect = mobileJoystick.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const max = rect.width * 0.34;
+  const rawX = event.clientX - centerX;
+  const rawY = event.clientY - centerY;
+  const distance = Math.hypot(rawX, rawY);
+  const limited = Math.min(max, distance || 0);
+  const nx = distance ? rawX / distance : 0;
+  const ny = distance ? rawY / distance : 0;
+  const knobX = nx * limited;
+  const knobY = ny * limited;
+  state.joystickX = knobX / max;
+  state.joystickY = -knobY / max;
+  state.joystickActive = true;
+  state.targetX = null;
+  state.targetY = null;
+  joystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+}
+
+function resetJoystick() {
+  state.joystickActive = false;
+  state.joystickX = 0;
+  state.joystickY = 0;
+  joystickKnob?.style.setProperty("transform", "translate(-50%, -50%)");
+}
+
+mobileJoystick.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  mobileJoystick.setPointerCapture?.(event.pointerId);
+  updateJoystick(event);
+});
+mobileJoystick.addEventListener("pointermove", (event) => {
+  if (!state.joystickActive) return;
+  event.preventDefault();
+  updateJoystick(event);
+});
+mobileJoystick.addEventListener("pointerup", (event) => {
+  mobileJoystick.releasePointerCapture?.(event.pointerId);
+  resetJoystick();
+});
+mobileJoystick.addEventListener("pointercancel", resetJoystick);
+
 function moveTowardEvent(event) {
   const point = scenePointFromEvent(event);
   setSceneTarget(point.x, point.y);
