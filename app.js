@@ -147,6 +147,7 @@ const state = {
   nearObjectId: null,
   nearObjectSince: 0,
   autoInteractDelayUntil: 0,
+  touchMoving: false,
   sceneSkinIndex: 0,
   alertCooldown: 0,
   voices: [],
@@ -302,14 +303,6 @@ function renderMissionTrack(container) {
     route.appendChild(polyline);
     container.appendChild(route);
   }
-  const panel = document.createElement("div");
-  panel.className = "mission-panel";
-  panel.innerHTML = `
-    <span>任务链 ${Math.min(state.missionStep, 3)}/3</span>
-    <strong>${missionInstruction()}</strong>
-    <small>情报 ${intelText()} · 警戒 ${state.alertLevel}</small>
-  `;
-  container.appendChild(panel);
 }
 
 function prepareSceneObjects() {
@@ -1076,6 +1069,7 @@ function start(mode = "unit") {
   state.nearObjectId = null;
   state.nearObjectSince = 0;
   state.autoInteractDelayUntil = 0;
+  state.touchMoving = false;
   state.alertCooldown = 0;
   state.alertLevel = 0;
   state.distance = 0;
@@ -1160,14 +1154,31 @@ $("reviveBtn").addEventListener("click", reviveGame);
 $("energyRestartBtn").addEventListener("click", () => start(state.mode === "all" ? "all" : "unit"));
 $("energyReviewBtn").addEventListener("click", () => start("review"));
 const exploreScene = $("exploreScene");
-exploreScene.addEventListener("pointerdown", (event) => {
-  if (event.target.closest(".scene-object")) return;
+function moveTowardEvent(event) {
   const point = scenePointFromEvent(event);
   setSceneTarget(point.x, point.y);
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
-  state.battleLog = "正在移动，寻找可调查目标";
+  state.battleLog = "沿指示路线移动";
+}
+
+exploreScene.addEventListener("pointerdown", (event) => {
+  if (event.target.closest(".scene-object")) return;
+  state.touchMoving = true;
+  exploreScene.setPointerCapture?.(event.pointerId);
+  moveTowardEvent(event);
+});
+exploreScene.addEventListener("pointermove", (event) => {
+  if (!state.touchMoving || event.target.closest(".scene-object")) return;
+  moveTowardEvent(event);
+});
+exploreScene.addEventListener("pointerup", (event) => {
+  state.touchMoving = false;
+  exploreScene.releasePointerCapture?.(event.pointerId);
+});
+exploreScene.addEventListener("pointercancel", () => {
+  state.touchMoving = false;
 });
 window.addEventListener("keydown", (event) => {
   state.keys.add(event.code);
