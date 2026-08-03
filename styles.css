@@ -620,6 +620,28 @@ h1 {
   box-shadow: 0 0 20px rgba(96, 165, 250, 0.38);
 }
 
+.scene-prop.speed {
+  min-width: 86px;
+  border-radius: 8px;
+  color: #0b2634;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.42) 0 8px, transparent 8px 16px),
+    linear-gradient(180deg, #32d79a, #60a5fa);
+  border: 2px solid rgba(234, 247, 255, 0.7);
+  box-shadow: 0 0 22px rgba(50, 215, 154, 0.42);
+}
+
+.scene-prop.gear {
+  min-width: 78px;
+  border-radius: 8px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(246, 200, 95, 0.34) 0 24%, transparent 24%),
+    linear-gradient(180deg, rgba(40, 60, 84, 0.95), rgba(16, 34, 48, 0.96));
+  border: 2px solid rgba(246, 200, 95, 0.85);
+  box-shadow: 0 0 24px rgba(246, 200, 95, 0.34);
+}
+
 .scene-prop.alert {
   width: 118px;
   height: 58px;
@@ -711,6 +733,22 @@ h1 {
   filter: drop-shadow(0 0 10px rgba(255, 107, 74, 0.9));
 }
 
+.scene-player.boosting {
+  filter: drop-shadow(0 0 16px rgba(50, 215, 154, 0.9));
+}
+
+.scene-player.boosting::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 6px;
+  bottom: -12px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(50, 215, 154, 0.35);
+  filter: blur(3px);
+}
+
 @keyframes player-hit {
   0%, 100% { opacity: 1; }
   20%, 55% { opacity: 0.38; }
@@ -789,6 +827,10 @@ h1 {
 }
 
 .mobile-joystick {
+  display: none;
+}
+
+.skill-button {
   display: none;
 }
 
@@ -1397,6 +1439,29 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     box-shadow: 0 8px 18px rgba(0,0,0,0.28);
     pointer-events: none;
   }
+  .skill-button {
+    position: absolute;
+    right: 16px;
+    bottom: 24px;
+    z-index: 7;
+    display: grid;
+    place-items: center;
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    color: #0b2634;
+    background: linear-gradient(180deg, #f6c85f, #32d79a);
+    border: 2px solid rgba(255,255,255,0.72);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.28);
+    font-size: 0.86rem;
+    font-weight: 1000;
+    touch-action: manipulation;
+  }
+  .skill-button.cooling {
+    color: rgba(234, 247, 255, 0.72);
+    background: rgba(10, 29, 46, 0.58);
+    border-color: rgba(234, 247, 255, 0.28);
+  }
   .unit-row {
     gap: 6px;
     padding-bottom: 3px;
@@ -1460,6 +1525,13 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .joystick-knob {
     width: 36px;
     height: 36px;
+  }
+  .skill-button {
+    width: 62px;
+    height: 62px;
+    right: 10px;
+    bottom: 18px;
+    font-size: 0.76rem;
   }
   .intel-node,
   .shortcut-node,

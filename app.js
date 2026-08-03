@@ -147,6 +147,9 @@ const state = {
   alertLevel: 0,
   hazardCooldown: 0,
   impactUntil: 0,
+  dashUntil: 0,
+  dashCooldownUntil: 0,
+  shields: 0,
   currentObjectId: null,
   nearObjectId: null,
   nearObjectSince: 0,
@@ -376,7 +379,9 @@ function prepareSceneObjects() {
 function createSceneProps(layout) {
   const base = [
     { id: `bonus-${state.sceneSkinIndex}`, kind: "bonus", label: "补给", x: 14 + (state.sceneSkinIndex % 3) * 8, y: 18 + (state.sceneSkinIndex % 2) * 10, done: false },
-    { id: `alert-${state.sceneSkinIndex}`, kind: "alert", label: "警戒区", x: 58 + (state.sceneSkinIndex % 2) * 14, y: 26 + (state.sceneSkinIndex % 3) * 8, done: false }
+    { id: `alert-${state.sceneSkinIndex}`, kind: "alert", label: "警戒区", x: 58 + (state.sceneSkinIndex % 2) * 14, y: 26 + (state.sceneSkinIndex % 3) * 8, done: false },
+    { id: `speed-${state.sceneSkinIndex}`, kind: "speed", label: "加速带", x: 31 + (state.sceneSkinIndex % 2) * 18, y: 18 + (state.sceneSkinIndex % 3) * 9, cooldownUntil: 0 },
+    { id: `gear-${state.sceneSkinIndex}`, kind: "gear", label: "装备箱", x: 74 - (state.sceneSkinIndex % 2) * 16, y: 72 - (state.sceneSkinIndex % 3) * 7, done: false }
   ];
   if (layout.length > 4) {
     base.push({ id: `clue-${state.sceneSkinIndex}`, kind: "clue", label: "线索", x: 88, y: 64, done: false });
@@ -823,6 +828,7 @@ function gameLoop() {
 function updateSceneMovement() {
   let dx = 0;
   let dy = 0;
+  const speedBoost = Date.now() < state.dashUntil ? 1.75 : 1;
   if (state.joystickActive) {
     dx += state.joystickX;
     dy += state.joystickY;
@@ -834,8 +840,8 @@ function updateSceneMovement() {
 
   if (dx || dy) {
     const length = Math.hypot(dx, dy) || 1;
-    state.playerX = Math.max(6, Math.min(94, state.playerX + (dx / length) * 0.62));
-    state.playerY = Math.max(10, Math.min(84, state.playerY + (dy / length) * 0.62));
+    state.playerX = Math.max(6, Math.min(94, state.playerX + (dx / length) * 0.62 * speedBoost));
+    state.playerY = Math.max(10, Math.min(84, state.playerY + (dy / length) * 0.62 * speedBoost));
     state.targetX = null;
     state.targetY = null;
     $("scenePlayer")?.classList.add("walking");
@@ -851,8 +857,8 @@ function updateSceneMovement() {
       $("scenePlayer")?.classList.remove("walking");
       if (state.currentObjectId) interactObject(state.currentObjectId);
     } else {
-      state.playerX += (tx / length) * 0.72;
-      state.playerY += (ty / length) * 0.72;
+      state.playerX += (tx / length) * 0.72 * speedBoost;
+      state.playerY += (ty / length) * 0.72 * speedBoost;
       $("scenePlayer")?.classList.add("walking");
     }
   } else {
@@ -885,6 +891,16 @@ function updateSceneHazards() {
       state.hazardCooldown = now + 1450;
       state.impactUntil = now + 720;
       hazard.hitUntil = now + 720;
+      if (state.shields > 0) {
+        state.shields -= 1;
+        state.battleLog = `护盾抵消扫描，剩余 ${state.shields}`;
+        if (navigator.vibrate) navigator.vibrate(45);
+        $("gameStage").classList.add("hit-burst");
+        window.setTimeout(() => $("gameStage").classList.remove("hit-burst"), 520);
+        save();
+        renderBattle();
+        return;
+      }
       state.alertLevel += 1;
       state.streak = 0;
       state.seconds = Math.max(8, state.seconds - 3);
@@ -947,6 +963,22 @@ function checkSceneProps() {
       state.seconds += 8;
       state.score += 12;
       state.battleLog = "找到线索，时间 +8s";
+    }
+    if (prop.kind === "speed" && close < 10 && now > (prop.cooldownUntil || 0)) {
+      prop.cooldownUntil = now + 3600;
+      state.dashUntil = now + 1300;
+      state.score += 10;
+      state.battleLog = "踩到加速带，短时提速";
+      $("scenePlayer")?.classList.add("boosting");
+      window.setTimeout(() => $("scenePlayer")?.classList.remove("boosting"), 1300);
+    }
+    if (prop.kind === "gear" && !prop.done && close < 9) {
+      prop.done = true;
+      state.shields = Math.min(2, state.shields + 1);
+      state.stars += 2;
+      state.score += 24;
+      state.battleLog = `获得护盾 x${state.shields}`;
+      save();
     }
     if (prop.kind === "alert" && close < 12 && now > state.alertCooldown) {
       state.alertCooldown = now + 2600;
@@ -1138,6 +1170,20 @@ function reviveGame() {
   renderBattle();
 }
 
+function activateDash() {
+  const now = Date.now();
+  if (!state.running || state.paused || now < state.dashCooldownUntil) return;
+  state.dashUntil = now + 760;
+  state.dashCooldownUntil = now + 4200;
+  state.score += 6;
+  state.battleLog = "冲刺启动，快速穿过危险区";
+  $("scenePlayer")?.classList.add("boosting");
+  $("skillBtn")?.classList.add("cooling");
+  window.setTimeout(() => $("scenePlayer")?.classList.remove("boosting"), 760);
+  window.setTimeout(() => $("skillBtn")?.classList.remove("cooling"), 4200);
+  renderHud();
+}
+
 function tick() {
   if (!state.running || state.paused) return;
   state.seconds -= 1;
@@ -1156,6 +1202,7 @@ function start(mode = "unit") {
   state.seconds = reviewOnly ? 100 : mode === "all" ? 180 : 150;
   state.stars = 0;
   state.hearts = 3;
+  state.shields = 0;
   state.revives = 0;
   state.outOfEnergy = false;
   state.battleLog = "拖动移动，避开巡逻扫描";
@@ -1181,6 +1228,8 @@ function start(mode = "unit") {
   state.alertCooldown = 0;
   state.alertLevel = 0;
   state.hazardCooldown = 0;
+  state.dashUntil = 0;
+  state.dashCooldownUntil = 0;
   state.distance = 0;
   state.sceneIndex = mode === "unit" ? state.unitIndex : 0;
   state.worldMission = mode === "all" ? createWorldMission() : null;
@@ -1259,6 +1308,7 @@ $("reviewBtn").addEventListener("click", () => start("review"));
 $("cardBtn").addEventListener("click", showCards);
 $("closeCards").addEventListener("click", () => $("cardsDialog").close());
 $("speakBtn").addEventListener("click", () => speak());
+$("skillBtn").addEventListener("click", activateDash);
 $("reviveBtn").addEventListener("click", reviveGame);
 $("energyRestartBtn").addEventListener("click", () => start(state.mode === "all" ? "all" : "unit"));
 $("energyReviewBtn").addEventListener("click", () => start("review"));
@@ -1339,6 +1389,7 @@ exploreScene.addEventListener("pointercancel", () => {
 });
 window.addEventListener("keydown", (event) => {
   state.keys.add(event.code);
+  if (event.code === "Space" && !event.repeat) activateDash();
   if ((event.code === "KeyE" || event.code === "Enter") && !event.repeat) interactNearestObject();
 });
 window.addEventListener("keyup", (event) => {
