@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111827" />
+    <title>Word Runner 城市词境</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="top-bar" aria-label="游戏状态">
+        <div>
+          <p class="eyebrow">Word Runner</p>
+          <h1>城市词境</h1>
+        </div>
+        <div class="score-board">
+          <span><strong id="score">0</strong> 分</span>
+          <span><strong id="streak">0</strong> 连击</span>
+        </div>
+      </section>
+
+      <section class="game-stage scene-plain" id="gameStage" aria-live="polite">
+        <section class="mode-home" id="modeHome" aria-label="游戏模式">
+          <div class="mode-hero">
+            <span>任务中心</span>
+            <strong>进入词境，完成今天的路线</strong>
+          </div>
+          <div class="mode-grid">
+            <button class="mode-card campaign-card" id="campaignModeBtn" type="button">
+              <span>课本战役</span>
+              <strong>Unit 1-8</strong>
+              <small>每关必须掌握本单元全部重点词</small>
+            </button>
+            <button class="mode-card world-card" id="worldModeBtn" type="button">
+              <span>城市大世界</span>
+              <strong>全量词库</strong>
+              <small>接委托、跑城区、升级装备</small>
+            </button>
+            <button class="mode-card review-card" id="reviewModeBtn" type="button">
+              <span>训练场</span>
+              <strong>错题清除</strong>
+              <small>把薄弱词变成已掌握词卡</small>
+            </button>
+          </div>
+        </section>
+
+        <div class="progress-row">
+          <span id="levelLabel">Unit 1</span>
+          <progress id="progress" value="0" max="100"></progress>
+          <span id="timer">60s</span>
+        </div>
+
+        <div class="unit-row" id="unitRow" aria-label="单元关卡"></div>
+
+        <section class="battle-arena" id="battleArena" aria-label="场景任务">
+          <div class="scene-hud">
+            <span id="battleZone">Unit 1</span>
+            <strong id="battleLog">移动角色，调查发光目标</strong>
+          </div>
+          <div class="explore-scene" id="exploreScene" aria-label="校园潜行场景">
+            <div class="scene-grid-lines"></div>
+            <button class="scene-object terminal" type="button" data-object="terminal">
+              <strong>终端机</strong>
+              <span>破解</span>
+            </button>
+            <button class="scene-object locker" type="button" data-object="locker">
+              <strong>储物柜</strong>
+              <span>搜索</span>
+            </button>
+            <button class="scene-object gate-lock" type="button" data-object="gate">
+              <strong>门禁</strong>
+              <span>解锁</span>
+            </button>
+            <button class="scene-object signal-box" type="button" data-object="signal">
+              <strong>信号箱</strong>
+              <span>校准</span>
+            </button>
+            <div class="scene-player" id="scenePlayer" aria-hidden="true">
+              <span class="player-head"></span>
+              <span class="player-body"></span>
+              <span class="player-bag"></span>
+            </div>
+          </div>
+        </section>
+
+        <div id="wordGate" class="word-gate" aria-label="单词门">
+          <div class="gate-panel">
+            <div class="gate-word-row">
+              <span id="starBadge">新课标</span>
+              <button id="speakBtn" class="icon-btn" type="button" aria-label="朗读单词" title="朗读单词">▶</button>
+            </div>
+            <strong id="wordText">ready</strong>
+            <p id="hintText">选对意思，打开这扇门</p>
+            <div id="choices" class="gate-choices" aria-label="中文释义选项"></div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button id="startBtn" type="button">重开旅程</button>
+          <button id="allModeBtn" type="button">全量探险</button>
+          <button id="reviewBtn" type="button">复习错题</button>
+          <button id="cardBtn" type="button">词卡</button>
+        </div>
+      </section>
+
+      <section class="dock" aria-label="学习记录">
+        <div>
+          <span>星星/金币</span>
+          <strong id="starCount">0</strong>
+        </div>
+        <div>
+          <span>体力</span>
+          <strong id="heartCount">3</strong>
+        </div>
+        <div>
+          <span>今日掌握</span>
+          <strong id="knownCount">0</strong>
+        </div>
+        <div>
+          <span>错题本</span>
+          <strong id="missCount">0</strong>
+        </div>
+        <div>
+          <span>最高分</span>
+          <strong id="bestScore">0</strong>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="cardsDialog">
+      <div class="dialog-head">
+        <h2>我的词卡</h2>
+        <button class="icon-btn" type="button" id="closeCards" aria-label="关闭" title="关闭">×</button>
+      </div>
+      <div id="cardList" class="card-list"></div>
+    </dialog>
+
+    <script src="words.js"></script>
+    <script src="focus-units.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

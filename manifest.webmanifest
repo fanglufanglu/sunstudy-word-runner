@@ -1,0 +1,15 @@
+{
+  "name": "Word Quest 新课标词汇小游戏",
+  "short_name": "Word Quest",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fffdf7",
+  "theme_color": "#12363a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
