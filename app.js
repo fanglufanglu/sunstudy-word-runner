@@ -52,6 +52,8 @@ const state = {
   seconds: 150,
   stars: 0,
   hearts: 3,
+  revives: 0,
+  outOfEnergy: false,
   distance: 0,
   sceneIndex: 0,
   unitIndex: Number(localStorage.getItem("wordQuestActiveUnit") || 0),
@@ -319,6 +321,7 @@ function save() {
   $("bestScore").textContent = state.progress.best || 0;
   $("starCount").textContent = `${state.stars}/${state.progress.coins || 0}`;
   $("heartCount").textContent = state.hearts;
+  renderEnergyState();
 }
 
 function shuffle(items) {
@@ -468,7 +471,18 @@ function renderHud() {
   $("timer").textContent = state.seconds + "s";
   $("starCount").textContent = `${state.stars}/${state.progress.coins || 0}`;
   $("heartCount").textContent = state.hearts;
+  renderEnergyState();
   document.querySelectorAll(".unit-chip").forEach((button, index) => button.classList.toggle("active", state.mode === "unit" && index === state.unitIndex));
+}
+
+function renderEnergyState() {
+  const low = state.hearts === 1;
+  const empty = state.hearts <= 0;
+  $("energyBadge").textContent = `体力 ${Math.max(0, state.hearts)}`;
+  $("energyBadge").classList.toggle("low", low);
+  $("energyBadge").classList.toggle("empty", empty);
+  $("heartTile").classList.toggle("low-energy", low);
+  $("heartTile").classList.toggle("empty-energy", empty);
 }
 
 function completeWorldMission() {
@@ -720,8 +734,48 @@ function answerGate(button, correct) {
     completeUnit();
     completeWorldMission();
     refreshSceneIfNeeded();
-    if (state.hearts <= 0) stopGame();
+    if (state.hearts <= 0) showEnergyPanel();
   }, correct ? 850 : 1500);
+}
+
+function showEnergyPanel() {
+  state.running = false;
+  state.paused = true;
+  state.outOfEnergy = true;
+  state.hearts = 0;
+  state.streak = 0;
+  window.clearInterval(state.loopId);
+  window.clearInterval(state.timerId);
+  window.clearInterval(state.gateTimerId);
+  state.progress.best = Math.max(state.progress.best || 0, state.score);
+  save();
+  state.battleLog = "体力耗尽，任务暂停。补给后可以继续。";
+  $("energyText").textContent = state.revives ? "再次补给会扣更多分，但可以继续完成本关。" : "使用补给恢复体力，继续完成本关。";
+  $("energyPanel").classList.add("show");
+  renderHud();
+  renderBattle();
+}
+
+function reviveGame() {
+  if (!state.outOfEnergy) return;
+  const starCost = Math.min(state.stars, 6 + state.revives * 2);
+  state.stars -= starCost;
+  state.score = Math.max(0, state.score - state.revives * 40);
+  state.hearts = 2;
+  state.seconds = Math.max(state.seconds, 45);
+  state.revives += 1;
+  state.running = true;
+  state.paused = false;
+  state.outOfEnergy = false;
+  state.battleLog = starCost ? `补给成功，消耗 ${starCost} 星` : "紧急补给成功，继续任务";
+  $("energyPanel").classList.remove("show");
+  window.clearInterval(state.loopId);
+  window.clearInterval(state.timerId);
+  state.loopId = window.setInterval(gameLoop, 33);
+  state.timerId = window.setInterval(tick, 1000);
+  save();
+  renderHud();
+  renderBattle();
 }
 
 function tick() {
@@ -742,6 +796,8 @@ function start(mode = "unit") {
   state.seconds = reviewOnly ? 100 : mode === "all" ? 180 : 150;
   state.stars = 0;
   state.hearts = 3;
+  state.revives = 0;
+  state.outOfEnergy = false;
   state.battleLog = "点击地面移动，调查发光目标";
   state.playerX = 16;
   state.playerY = 22;
@@ -766,6 +822,7 @@ function start(mode = "unit") {
   $("gameStage").classList.remove("home-open");
   $("modeHome").classList.add("hidden");
   $("wordGate").classList.remove("show");
+  $("energyPanel").classList.remove("show");
   $("startBtn").textContent = mode === "unit" ? "重开本关" : "返回大厅";
   window.clearInterval(state.loopId);
   window.clearInterval(state.timerId);
@@ -779,6 +836,7 @@ function start(mode = "unit") {
 function stopGame() {
   state.running = false;
   state.paused = false;
+  state.outOfEnergy = false;
   window.clearInterval(state.loopId);
   window.clearInterval(state.timerId);
   window.clearInterval(state.gateTimerId);
@@ -793,11 +851,13 @@ function stopGame() {
 function showHome() {
   state.running = false;
   state.paused = false;
+  state.outOfEnergy = false;
   window.clearInterval(state.loopId);
   window.clearInterval(state.timerId);
   window.clearInterval(state.gateTimerId);
   $("wordGate").classList.remove("show");
   $("wordGate").classList.remove("boss");
+  $("energyPanel").classList.remove("show");
   $("modeHome").classList.remove("hidden");
   $("gameStage").classList.add("home-open");
   $("levelLabel").textContent = "准备出发";
@@ -830,6 +890,9 @@ $("reviewBtn").addEventListener("click", () => start("review"));
 $("cardBtn").addEventListener("click", showCards);
 $("closeCards").addEventListener("click", () => $("cardsDialog").close());
 $("speakBtn").addEventListener("click", () => speak());
+$("reviveBtn").addEventListener("click", reviveGame);
+$("energyRestartBtn").addEventListener("click", () => start(state.mode === "all" ? "all" : "unit"));
+$("energyReviewBtn").addEventListener("click", () => start("review"));
 const exploreScene = $("exploreScene");
 exploreScene.addEventListener("pointerdown", (event) => {
   if (event.target.closest(".scene-object")) return;

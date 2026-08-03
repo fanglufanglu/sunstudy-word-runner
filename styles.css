@@ -589,12 +589,41 @@ h1 {
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: 1fr minmax(110px, 220px) auto;
+  grid-template-columns: 1fr minmax(110px, 220px) auto auto;
   align-items: center;
   gap: 10px;
   color: var(--muted);
   font-size: 0.88rem;
   font-weight: 800;
+}
+
+.energy-badge {
+  min-width: 72px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #0f3d2f;
+  background: rgba(50, 215, 154, 0.18);
+  border: 1px solid rgba(50, 215, 154, 0.42);
+  text-align: center;
+  font-weight: 1000;
+}
+
+.energy-badge.low {
+  color: #7a2e18;
+  background: rgba(246, 200, 95, 0.28);
+  border-color: rgba(246, 200, 95, 0.72);
+  animation: energy-pulse 1s ease-in-out infinite;
+}
+
+.energy-badge.empty {
+  color: #fff;
+  background: #d94f38;
+  border-color: #d94f38;
+}
+
+@keyframes energy-pulse {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.06; }
 }
 
 .unit-row {
@@ -673,6 +702,72 @@ progress::-moz-progress-bar { background: linear-gradient(90deg, var(--mint), va
 .word-gate.show {
   opacity: 1;
   pointer-events: auto;
+}
+
+.energy-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.48);
+  transition: opacity 0.18s ease;
+}
+
+.energy-panel.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.energy-card {
+  width: min(94%, 520px);
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 3px solid #f6c85f;
+  border-radius: 8px;
+  color: #eaf7ff;
+  background:
+    linear-gradient(135deg, rgba(246, 200, 95, 0.18) 0 24%, transparent 24%),
+    linear-gradient(180deg, #1d3043, #10202c);
+  box-shadow: 10px 10px 0 rgba(17, 24, 39, 0.28), 0 0 36px rgba(246, 200, 95, 0.22);
+}
+
+.energy-card span {
+  color: #f6c85f;
+  font-size: 0.82rem;
+  font-weight: 1000;
+}
+
+.energy-card strong {
+  font-size: clamp(1.35rem, 5vw, 2rem);
+}
+
+.energy-card p {
+  color: rgba(234, 247, 255, 0.78);
+  font-weight: 900;
+}
+
+.energy-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.energy-actions button {
+  min-height: 50px;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--reef);
+  font-weight: 1000;
+}
+
+.energy-actions button:first-child {
+  color: var(--reef);
+  background: linear-gradient(180deg, #f6c85f, #32d79a);
 }
 
 .word-gate.boss {
@@ -829,6 +924,15 @@ progress::-moz-progress-bar { background: linear-gradient(90deg, var(--mint), va
 .dock span { color: var(--muted); font-size: 0.76rem; font-weight: 800; }
 .dock strong { font-size: 1.3rem; color: var(--reef); }
 
+.dock .low-energy strong {
+  color: #d16a22;
+  animation: energy-pulse 1s ease-in-out infinite;
+}
+
+.dock .empty-energy strong {
+  color: #d94f38;
+}
+
 dialog {
   width: min(92vw, 640px);
   max-height: 82vh;
@@ -879,7 +983,8 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .top-bar { align-items: start; }
   .score-board { font-size: 0.8rem; }
   .progress-row { grid-template-columns: 1fr auto; }
-  .progress-row progress { grid-column: 1 / -1; order: 3; }
+  .progress-row progress { grid-column: 1 / -1; order: 4; }
+  .energy-badge { min-width: 64px; padding: 6px 8px; }
   .mode-grid { grid-template-columns: 1fr; }
   .mode-card { min-height: 106px; }
   .battle-arena { min-height: 440px; padding: 10px; }
@@ -896,6 +1001,7 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .gate-panel.long-word > strong { font-size: clamp(1.15rem, 6vw, 2rem); }
   .gate-choices { grid-template-columns: 1fr; }
   .gate-choice { min-height: 48px; font-size: 0.9rem; }
+  .energy-actions { grid-template-columns: 1fr; }
   .action-row { grid-template-columns: 1fr; }
   .dock { grid-template-columns: repeat(5, 1fr); padding: 9px 6px; }
   .dock strong { font-size: 1.05rem; }

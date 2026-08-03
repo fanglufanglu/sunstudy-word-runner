@@ -49,6 +49,7 @@
         <div class="progress-row">
           <span id="levelLabel">Unit 1</span>
           <progress id="progress" value="0" max="100"></progress>
+          <span id="energyBadge" class="energy-badge">体力 3</span>
           <span id="timer">60s</span>
         </div>
 
@@ -83,6 +84,19 @@
           </div>
         </div>
 
+        <div id="energyPanel" class="energy-panel" aria-label="体力补给">
+          <div class="energy-card">
+            <span>能量中断</span>
+            <strong>体力耗尽，任务暂停</strong>
+            <p id="energyText">使用补给恢复体力，继续完成本关。</p>
+            <div class="energy-actions">
+              <button id="reviveBtn" type="button">补给继续</button>
+              <button id="energyRestartBtn" type="button">重开本关</button>
+              <button id="energyReviewBtn" type="button">复习错题</button>
+            </div>
+          </div>
+        </div>
+
         <div class="action-row">
           <button id="startBtn" type="button">重开旅程</button>
           <button id="allModeBtn" type="button">全量探险</button>
@@ -96,7 +110,7 @@
           <span>星星/金币</span>
           <strong id="starCount">0</strong>
         </div>
-        <div>
+        <div id="heartTile">
           <span>体力</span>
           <strong id="heartCount">3</strong>
         </div>
