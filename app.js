@@ -146,6 +146,7 @@ const state = {
   missionStep: 1,
   alertLevel: 0,
   hazardCooldown: 0,
+  impactUntil: 0,
   currentObjectId: null,
   nearObjectId: null,
   nearObjectSince: 0,
@@ -252,9 +253,14 @@ function renderBattle() {
   if (!arena) return;
   if (!state.sceneObjects.length) prepareSceneObjects();
   arena.className = `explore-scene skin-${state.sceneMission?.skin || "campus"}`;
+  const impactActive = Date.now() < state.impactUntil;
+  $("gameStage").classList.toggle("danger-hit", impactActive);
+  $("battleArena").classList.toggle("hit-alert", impactActive);
   $("battleZone").textContent = state.mode === "unit" && unit ? `${unit.name} · ${state.sceneMission?.title || unit.title}` : state.mode === "all" ? `城市大世界 Lv.${equipmentLevel()} · ${state.sceneMission?.title || "委托"}` : `错题训练场 · ${state.sceneMission?.title || "训练"}`;
   $("battleLog").textContent = state.battleLog || "拖动移动，避开巡逻扫描";
-  place($("scenePlayer"), { x: state.playerX, y: state.playerY });
+  const player = $("scenePlayer");
+  player.classList.toggle("hit", impactActive);
+  place(player, { x: state.playerX, y: state.playerY });
   renderSceneObjectButtons();
   renderSceneProps();
 }
@@ -417,7 +423,7 @@ function renderSceneProps() {
   });
   state.sceneHazards.forEach((hazard) => {
     const el = document.createElement("span");
-    el.className = "scene-prop patrol";
+    el.className = `scene-prop patrol ${Date.now() < (hazard.hitUntil || 0) ? "hit" : ""}`;
     el.textContent = hazard.label;
     place(el, hazard);
     container.appendChild(el);
@@ -870,15 +876,20 @@ function updateSceneHazards() {
     const caught = Math.hypot(state.playerX - hazard.x, state.playerY - hazard.y) < hazard.radius;
     if (caught && now > state.hazardCooldown) {
       state.hazardCooldown = now + 1450;
+      state.impactUntil = now + 720;
+      hazard.hitUntil = now + 720;
       state.alertLevel += 1;
       state.streak = 0;
       state.seconds = Math.max(8, state.seconds - 3);
       state.score = Math.max(0, state.score - 16);
-      if (state.alertLevel % 3 === 0) state.hearts -= 1;
-      state.battleLog = state.alertLevel % 3 === 0 ? "被巡逻扫描锁定，体力 -1" : "进入扫描范围，时间 -3s";
-      $("gameStage").classList.add("shake");
-      window.setTimeout(() => $("gameStage").classList.remove("shake"), 340);
+      const severe = state.alertLevel % 3 === 0;
+      if (severe) state.hearts -= 1;
+      state.battleLog = severe ? "命中！警戒 +1 / 时间 -3s / 体力 -1" : "命中！警戒 +1 / 时间 -3s";
+      if (navigator.vibrate) navigator.vibrate(severe ? [90, 40, 90] : 80);
+      $("gameStage").classList.add("shake", "hit-burst");
+      window.setTimeout(() => $("gameStage").classList.remove("shake", "hit-burst"), 720);
       save();
+      renderBattle();
       if (state.hearts <= 0) showEnergyPanel();
     }
   });

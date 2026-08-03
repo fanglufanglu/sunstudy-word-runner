@@ -110,6 +110,31 @@ h1 {
   pointer-events: none;
 }
 
+.game-stage.danger-hit {
+  animation: hit-stage 0.72s ease;
+  box-shadow: 0 0 0 4px rgba(255, 107, 74, 0.32), 0 20px 46px rgba(255, 107, 74, 0.28);
+}
+
+.game-stage.danger-hit::before {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 107, 74, 0.26), transparent 46%),
+    linear-gradient(90deg, rgba(255,255,255,0.26) 0 1px, transparent 1px 96px),
+    linear-gradient(180deg, rgba(255,255,255,0.24) 0 1px, transparent 1px 72px);
+}
+
+.battle-arena.hit-alert .scene-hud {
+  border-color: rgba(255, 107, 74, 0.82);
+  background: linear-gradient(90deg, rgba(95, 32, 39, 0.96), rgba(30, 64, 92, 0.9));
+}
+
+@keyframes hit-stage {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-5px); }
+  36% { transform: translateX(5px); }
+  54% { transform: translateX(-3px); }
+  72% { transform: translateX(3px); }
+}
+
 .mode-home {
   position: relative;
   z-index: 6;
@@ -633,6 +658,21 @@ h1 {
   pointer-events: none;
 }
 
+.scene-prop.patrol.hit {
+  color: #fff;
+  border-color: #fff;
+  background:
+    radial-gradient(circle at 50% 120%, rgba(255,255,255,0.7) 0 24px, transparent 25px),
+    linear-gradient(180deg, rgba(255, 107, 74, 0.96), rgba(120, 43, 47, 0.96));
+  box-shadow: 0 0 0 5px rgba(255, 107, 74, 0.28), 0 0 38px rgba(255,107,74,0.72);
+  animation: patrol-hit 0.72s ease;
+}
+
+.scene-prop.patrol.hit::after {
+  background: radial-gradient(circle, rgba(255,107,74,0.36) 0 44%, transparent 45%);
+  border-color: rgba(255,255,255,0.42);
+}
+
 .scene-prop.done {
   opacity: 0;
 }
@@ -647,6 +687,12 @@ h1 {
   50% { filter: brightness(1.22); }
 }
 
+@keyframes patrol-hit {
+  0%, 100% { scale: 1; }
+  35% { scale: 1.15; }
+  70% { scale: 0.96; }
+}
+
 .scene-player {
   position: absolute;
   z-index: 5;
@@ -654,6 +700,21 @@ h1 {
   height: 86px;
   transform: translate(-50%, 50%);
   transition: left 0.08s linear, bottom 0.08s linear;
+}
+
+.scene-player.hit {
+  animation: player-hit 0.72s ease;
+}
+
+.scene-player.hit .player-body,
+.scene-player.hit .player-bag {
+  filter: drop-shadow(0 0 10px rgba(255, 107, 74, 0.9));
+}
+
+@keyframes player-hit {
+  0%, 100% { opacity: 1; }
+  20%, 55% { opacity: 0.38; }
+  35%, 75% { opacity: 1; }
 }
 
 .player-head,
