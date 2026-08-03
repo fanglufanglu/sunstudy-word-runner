@@ -1,12 +1,14 @@
 const $ = (id) => document.getElementById(id);
 const storeKey = "wordQuestProgress:v5";
 const scenes = [
-  { key: "plain", name: "校园夜跑道", mission: "沿跑道前进，读取词牌信号" },
-  { key: "river", name: "地铁换乘站", mission: "穿过站台，破解下一块词牌" },
-  { key: "mountain", name: "科技馆坡道", mission: "沿坡道上行，点亮词汇节点" },
-  { key: "desert", name: "城市施工区", mission: "避开路障，找到目标词牌" },
-  { key: "forest", name: "旧图书馆", mission: "穿过书架光影，收集线索" },
-  { key: "ruins", name: "天台信号塔", mission: "登上天台，打开最终词门" }
+  { key: "campus", legacy: "plain", name: "校园区", mission: "穿过教学楼与操场，恢复词汇档案" },
+  { key: "metro", legacy: "river", name: "地铁区", mission: "绕开巡逻闸机，追踪站台信号" },
+  { key: "library", legacy: "mountain", name: "图书馆区", mission: "在书架与阅览室之间找出线索链" },
+  { key: "roof", legacy: "desert", name: "天台区", mission: "修复信号塔，打开屋顶出口" },
+  { key: "market", legacy: "forest", name: "市集区", mission: "在人群街巷中甄别真线索" },
+  { key: "desert", legacy: "ruins", name: "沙漠施工区", mission: "穿越工地与断桥，完成终端验证" },
+  { key: "tech", name: "科技馆区", mission: "调试平台机关，解锁记忆芯片" },
+  { key: "station", name: "终点车站", mission: "冲过终局 Boss 门，完成转移" }
 ];
 const allUnits = window.FOCUS_UNITS || [];
 const focusMeanings = window.FOCUS_MEANINGS || {};
@@ -19,7 +21,21 @@ const sceneMissions = [
   { title: "天台校准", brief: "避开警戒灯，修复屋顶信号节点", skin: "roof" },
   { title: "市集调查", brief: "在人群街区寻找隐藏线索", skin: "market" },
   { title: "图书馆夜巡", brief: "穿过书架区，解开封存词卡", skin: "library" },
+  { title: "施工突围", brief: "利用移动平台，越过封锁施工区", skin: "desert" },
+  { title: "科技馆试炼", brief: "启动机关平台，校准词汇芯片", skin: "tech" },
   { title: "车站终局", brief: "启动出口系统，完成本轮转移", skin: "station" }
+];
+const sublevelRules = [
+  { key: "patrol", name: "巡逻潜入", short: "避开扫描", brief: "躲开巡逻光圈，先拿真线索再开终端" },
+  { key: "sprint", name: "限时冲刺", short: "冲刺倒计时", brief: "时间更紧，利用加速带和传送门抢路线" },
+  { key: "platform", name: "移动平台", short: "借平台穿越", brief: "站上移动平台绕开警戒区，拿到关键节点" },
+  { key: "door", name: "门牌迷阵", short: "找正确门牌", brief: "扫描器会提示可疑目标，误触干扰项会扣时间" },
+  { key: "boss", name: "Boss 门", short: "三连破解", brief: "最终门需要听音、释义、拼写连续通过" }
+];
+const materialCatalog = [
+  { key: "crystal", label: "词晶" },
+  { key: "metal", label: "合金" },
+  { key: "circuit", label: "芯片" }
 ];
 const objectCatalog = [
   { label: "终端机", action: "破解", className: "terminal", type: "spell" },
@@ -140,6 +156,7 @@ const state = {
   sceneProps: [],
   sceneHazards: [],
   sceneMission: null,
+  sceneRule: null,
   taskPlan: null,
   taskGoal: 0,
   taskDone: 0,
@@ -150,11 +167,13 @@ const state = {
   dashUntil: 0,
   dashCooldownUntil: 0,
   shields: 0,
+  memoryChipReady: false,
   currentObjectId: null,
   nearObjectId: null,
   nearObjectSince: 0,
   autoInteractDelayUntil: 0,
   touchMoving: false,
+  isMoving: false,
   joystickActive: false,
   joystickX: 0,
   joystickY: 0,
@@ -233,12 +252,57 @@ function createWorldMission() {
   };
 }
 
+function ensureProgressShape() {
+  state.progress.known = state.progress.known || {};
+  state.progress.missed = state.progress.missed || {};
+  state.progress.materials = state.progress.materials || { crystal: 0, metal: 0, circuit: 0 };
+  state.progress.pollution = state.progress.pollution || 0;
+  state.progress.coins = state.progress.coins || 0;
+}
+
+function materialTotal() {
+  ensureProgressShape();
+  return materialCatalog.reduce((sum, item) => sum + (state.progress.materials[item.key] || 0), 0);
+}
+
+function baseLevel() {
+  return Math.min(6, 1 + Math.floor(materialTotal() / 36));
+}
+
 function equipmentLevel() {
-  const coins = state.progress.coins || 0;
-  if (coins >= 260) return 4;
-  if (coins >= 150) return 3;
-  if (coins >= 70) return 2;
-  return 1;
+  return Math.max(1, baseLevel());
+}
+
+function equipmentLoadout() {
+  const level = baseLevel();
+  return {
+    shoes: level >= 2,
+    shield: level >= 3,
+    scanner: level >= 3,
+    memoryChip: level >= 4,
+    skin: level >= 5 ? "vanguard" : level >= 3 ? "scout" : "runner",
+    label: [
+      "基础背包",
+      "跑鞋",
+      "跑鞋 / 扫描器",
+      "跑鞋 / 扫描器 / 记忆芯片",
+      "先锋皮肤 / 全套装备",
+      "大师套装"
+    ][Math.min(level - 1, 5)]
+  };
+}
+
+function awardMaterial(reason = "word") {
+  ensureProgressShape();
+  const index = (state.sceneSkinIndex + state.streak + (reason === "boss" ? 2 : 0)) % materialCatalog.length;
+  const material = materialCatalog[index];
+  state.progress.materials[material.key] = (state.progress.materials[material.key] || 0) + (reason === "mission" ? 3 : reason === "boss" ? 2 : 1);
+  return material.label;
+}
+
+function clearPollution() {
+  ensureProgressShape();
+  if (state.progress.pollution > 0) state.progress.pollution -= 1;
 }
 
 function unlockedSceneCount() {
@@ -258,14 +322,21 @@ function renderBattle() {
   const arena = $("exploreScene");
   if (!arena) return;
   if (!state.sceneObjects.length) prepareSceneObjects();
-  arena.className = `explore-scene skin-${state.sceneMission?.skin || "campus"}`;
+  arena.className = `explore-scene skin-${state.sceneMission?.skin || "campus"} rule-${state.sceneRule?.key || "patrol"}`;
   const impactActive = Date.now() < state.impactUntil;
   $("gameStage").classList.toggle("danger-hit", impactActive);
   $("battleArena").classList.toggle("hit-alert", impactActive);
-  $("battleZone").textContent = state.mode === "unit" && unit ? `${unit.name} · ${state.sceneMission?.title || unit.title}` : state.mode === "all" ? `城市大世界 Lv.${equipmentLevel()} · ${state.sceneMission?.title || "委托"}` : `错题训练场 · ${state.sceneMission?.title || "训练"}`;
+  $("battleZone").textContent = state.mode === "unit" && unit
+    ? `${unit.name} · ${scene().name} · ${state.sceneRule?.name || state.sceneMission?.title || unit.title}`
+    : state.mode === "all"
+      ? `词岛大世界 Lv.${baseLevel()} · ${state.sceneMission?.title || "委托"}`
+      : `污染清除 Lv.${baseLevel()} · ${state.sceneMission?.title || "训练"}`;
   $("battleLog").textContent = state.battleLog || "拖动移动，避开巡逻扫描";
   const player = $("scenePlayer");
+  const loadout = equipmentLoadout();
+  player.className = `scene-player skin-${loadout.skin} ${state.isMoving ? "walking" : ""} ${Date.now() < state.dashUntil ? "boosting" : ""}`;
   player.classList.toggle("hit", impactActive);
+  player.classList.toggle("shielded", state.shields > 0);
   place(player, { x: state.playerX, y: state.playerY });
   renderSceneObjectButtons();
   renderSceneProps();
@@ -279,7 +350,8 @@ function renderSceneObjectButtons() {
     const near = distanceTo(object) < objectInteractRadius;
     const locked = isObjectLocked(object);
     const active = isObjectActive(object);
-    const status = object.done ? "完成" : locked ? `情报 ${intelText()}` : object.action;
+    const scannerHint = equipmentLoadout().scanner && object.role === "decoy" && !object.done;
+    const status = object.done ? "完成" : locked ? `情报 ${intelText()}` : scannerHint ? "可疑" : object.action;
     const detailed = active || near || object.role === "final";
     button.type = "button";
     button.className = `scene-object ${object.className}`;
@@ -297,6 +369,7 @@ function renderSceneObjectButtons() {
     button.classList.toggle("ready", object.role === "final" && !locked && !object.done);
     button.classList.toggle("active-target", active);
     button.classList.toggle("inactive-target", !active && !object.done);
+    button.classList.toggle("scanned-decoy", equipmentLoadout().scanner && object.role === "decoy" && !object.done);
     button.classList.toggle("compact", !detailed && !object.done);
     button.classList.toggle("collapsed", object.done);
     button.title = object.done ? "已完成" : locked ? `有效情报不足：${intelText()}` : object.role === "final" ? "关键节点：完成单词验证" : object.reward || "靠近后行动";
@@ -335,14 +408,17 @@ function prepareSceneObjects() {
   const layout = sceneLayouts[state.sceneSkinIndex % sceneLayouts.length];
   const orderedLayout = [...layout].sort((a, b) => a.x - b.x);
   const plan = taskPlans[state.sceneSkinIndex % taskPlans.length];
+  const rule = sublevelRules[state.sceneSkinIndex % sublevelRules.length];
   const taskGoal = plan.intelNeeded;
   const finalPoint = orderedLayout[orderedLayout.length - 1];
   state.sceneMission = sceneMissions[missionIndex];
+  state.sceneRule = rule;
   state.taskPlan = plan;
   state.taskGoal = taskGoal;
   state.taskDone = 0;
   state.missionStep = 1;
   state.alertLevel = 0;
+  if (state.running && rule.key === "sprint") state.seconds = Math.max(70, Math.min(state.seconds, 118));
   const nodeObjects = plan.nodes.slice(0, Math.min(plan.nodes.length, orderedLayout.length - 1)).map((node, index) => ({
     ...node,
     id: `${node.role}-${state.sceneSkinIndex}-${index}`,
@@ -369,12 +445,12 @@ function prepareSceneObjects() {
     {
       id: `final-${state.sceneSkinIndex}`,
       label: plan.finalLabel,
-      action: plan.finalAction,
-      className: plan.finalClass,
+      action: rule.key === "boss" ? "Boss 战" : plan.finalAction,
+      className: `${plan.finalClass} ${rule.key === "boss" ? "boss-node" : ""}`,
       role: "final",
       word: pickWord(),
       done: false,
-      type: challengeTypes[state.sceneSkinIndex % challengeTypes.length],
+      type: rule.key === "boss" ? "listen" : challengeTypes[state.sceneSkinIndex % challengeTypes.length],
       x: finalPoint.x,
       y: finalPoint.y
     }
@@ -388,15 +464,28 @@ function prepareSceneObjects() {
 }
 
 function createSceneProps(layout) {
+  const rule = state.sceneRule?.key || "patrol";
   const base = [
     { id: `bonus-${state.sceneSkinIndex}`, kind: "bonus", label: "补给", x: 14 + (state.sceneSkinIndex % 3) * 8, y: 18 + (state.sceneSkinIndex % 2) * 10, done: false },
     { id: `alert-${state.sceneSkinIndex}`, kind: "alert", label: "警戒区", x: 58 + (state.sceneSkinIndex % 2) * 14, y: 26 + (state.sceneSkinIndex % 3) * 8, done: false },
     { id: `speed-${state.sceneSkinIndex}`, kind: "speed", label: "加速带", x: 31 + (state.sceneSkinIndex % 2) * 18, y: 18 + (state.sceneSkinIndex % 3) * 9, cooldownUntil: 0 },
     { id: `gear-${state.sceneSkinIndex}`, kind: "gear", label: "装备箱", x: 74 - (state.sceneSkinIndex % 2) * 16, y: 72 - (state.sceneSkinIndex % 3) * 7, done: false },
     { id: `portal-${state.sceneSkinIndex}`, kind: "portal", label: "传送门", x: 18, y: 78 - (state.sceneSkinIndex % 2) * 16, cooldownUntil: 0 },
-    { id: `shard-a-${state.sceneSkinIndex}`, kind: "shard", label: "星片", x: 45, y: 62, done: false },
-    { id: `shard-b-${state.sceneSkinIndex}`, kind: "shard", label: "星片", x: 66, y: 18 + (state.sceneSkinIndex % 2) * 18, done: false }
+    { id: `shard-a-${state.sceneSkinIndex}`, kind: "shard", label: "词晶", x: 45, y: 62, done: false },
+    { id: `shard-b-${state.sceneSkinIndex}`, kind: "shard", label: "合金", x: 66, y: 18 + (state.sceneSkinIndex % 2) * 18, done: false }
   ];
+  if (rule === "platform") {
+    base.push(
+      { id: `platform-a-${state.sceneSkinIndex}`, kind: "platform", label: "移动平台", x: 36, y: 42, axis: "x", min: 24, max: 62, speed: 0.16, dir: 1 },
+      { id: `platform-b-${state.sceneSkinIndex}`, kind: "platform", label: "升降平台", x: 76, y: 54, axis: "y", min: 35, max: 72, speed: 0.12, dir: -1 }
+    );
+  }
+  if (rule === "sprint") {
+    base.push({ id: `speed-b-${state.sceneSkinIndex}`, kind: "speed", label: "冲刺带", x: 56, y: 48, cooldownUntil: 0 });
+  }
+  if (rule === "door") {
+    base.push({ id: `scanner-${state.sceneSkinIndex}`, kind: "scanner", label: "扫描器", x: 52, y: 72, done: false });
+  }
   if (layout.length > 4) {
     base.push({ id: `clue-${state.sceneSkinIndex}`, kind: "clue", label: "线索", x: 88, y: 64, done: false });
   }
@@ -405,7 +494,7 @@ function createSceneProps(layout) {
 
 function createSceneHazards() {
   const baseY = 28 + (state.sceneSkinIndex % 3) * 8;
-  return [
+  const hazards = [
     {
       id: `patrol-a-${state.sceneSkinIndex}`,
       label: "巡逻扫描",
@@ -431,12 +520,29 @@ function createSceneHazards() {
       radius: 9
     }
   ];
+  if (state.sceneRule?.key === "patrol" || state.sceneRule?.key === "boss") {
+    hazards.push({
+      id: `patrol-c-${state.sceneSkinIndex}`,
+      label: "警戒灯",
+      x: 22,
+      y: 70,
+      axis: "x",
+      min: 18,
+      max: 52,
+      speed: 0.13,
+      dir: 1,
+      radius: 8
+    });
+  }
+  if (state.sceneRule?.key === "sprint") hazards.forEach((hazard) => { hazard.speed += 0.04; });
+  return hazards;
 }
 
 function renderSceneProps() {
   const container = $("sceneProps");
   container.innerHTML = "";
   state.sceneProps.forEach((prop) => {
+    if (prop.kind === "platform") updatePlatform(prop);
     const el = document.createElement("span");
     el.className = `scene-prop ${prop.kind} ${prop.done ? "done" : ""}`;
     el.textContent = propText(prop);
@@ -453,7 +559,23 @@ function renderSceneProps() {
 }
 
 function propText(prop) {
-  return ({ bonus: "+", clue: "线", speed: "速", gear: "盾", alert: "!", portal: "传", shard: "星" }[prop.kind]) || prop.label;
+  return ({ bonus: "+", clue: "线", speed: "速", gear: "盾", alert: "!", portal: "传", shard: "材", platform: "台", scanner: "扫" }[prop.kind]) || prop.label;
+}
+
+function updatePlatform(prop) {
+  if (prop.axis === "x") {
+    prop.x += prop.speed * prop.dir;
+    if (prop.x < prop.min || prop.x > prop.max) {
+      prop.x = Math.max(prop.min, Math.min(prop.max, prop.x));
+      prop.dir *= -1;
+    }
+  } else {
+    prop.y += prop.speed * prop.dir;
+    if (prop.y < prop.min || prop.y > prop.max) {
+      prop.y = Math.max(prop.min, Math.min(prop.max, prop.y));
+      prop.dir *= -1;
+    }
+  }
 }
 
 function distanceTo(object) {
@@ -499,7 +621,11 @@ function activeMissionObjects() {
 function missionInstruction() {
   const plan = state.taskPlan;
   if (!plan) return "移动角色，执行当前任务";
-  if (state.taskDone >= state.taskGoal) return `最终目标：避开巡逻，接近${plan.finalLabel}完成突围`;
+  const rule = state.sceneRule;
+  if (state.taskDone >= state.taskGoal) return rule?.key === "boss" ? `Boss 门已开启：连续完成三种单词挑战` : `最终目标：避开巡逻，接近${plan.finalLabel}完成突围`;
+  if (rule?.key === "platform") return `平台关：借移动平台绕开警戒，收集${plan.goalLabel}`;
+  if (rule?.key === "sprint") return `冲刺关：路线限时，踩加速带后抢真线索`;
+  if (rule?.key === "door") return `门牌关：扫描可疑目标，找真线索再开门`;
   if (state.missionStep <= 1) {
     const first = state.sceneObjects.find((item) => item.phase === 1 && !item.done);
     return first ? `第一步：躲开扫描，先${first.action}${first.label}` : `第一步：获取${plan.goalLabel}`;
@@ -646,12 +772,14 @@ function refreshSceneIfNeeded() {
 }
 
 function save() {
+  ensureProgressShape();
   localStorage.setItem(storeKey, JSON.stringify(state.progress));
   $("knownCount").textContent = state.mode === "unit" ? unitMasteredCount() : Object.keys(state.progress.known).length;
   $("missCount").textContent = Object.keys(state.progress.missed).length;
   $("bestScore").textContent = state.progress.best || 0;
   $("starCount").textContent = `${state.stars}/${state.progress.coins || 0}`;
   $("heartCount").textContent = state.hearts;
+  if ($("baseInfo")) $("baseInfo").textContent = `Lv.${baseLevel()}/污${state.progress.pollution || 0}`;
   renderEnergyState();
 }
 
@@ -730,7 +858,7 @@ function speak(text = state.current?.word) {
 
 function scene() {
   const unit = activeUnit();
-  if (state.mode === "unit" && unit) return scenes.find((item) => item.key === unit.scene) || scenes[0];
+  if (state.mode === "unit" && unit) return scenes.find((item) => item.key === unit.scene || item.legacy === unit.scene) || scenes[0];
   return scenes[state.sceneIndex % unlockedSceneCount()];
 }
 
@@ -789,6 +917,7 @@ function completeUnit() {
 }
 
 function renderHud() {
+  ensureProgressShape();
   const currentScene = scene();
   const unit = activeUnit();
   const unitTotal = unit?.words?.length || 0;
@@ -802,13 +931,15 @@ function renderHud() {
   $("timer").textContent = state.seconds + "s";
   if (state.running && state.taskPlan && $("battleLog")) {
     const finalReady = state.taskDone >= state.taskGoal;
+    const ruleText = state.sceneRule ? `${state.sceneRule.short} · ` : "";
     const text = finalReady
-      ? `${state.taskPlan.finalLabel}已开放，前往完成单词验证`
-      : `${state.taskPlan.goalLabel} ${intelText()} · 警戒 ${state.alertLevel}`;
+      ? `${ruleText}${state.taskPlan.finalLabel}已开放，前往完成单词验证`
+      : `${ruleText}${state.taskPlan.goalLabel} ${intelText()} · 警戒 ${state.alertLevel}`;
     if (!state.paused && !state.battleLog) $("battleLog").textContent = text;
   }
   $("starCount").textContent = `${state.stars}/${state.progress.coins || 0}`;
   $("heartCount").textContent = state.hearts;
+  if ($("baseInfo")) $("baseInfo").textContent = `Lv.${baseLevel()}/污${state.progress.pollution || 0}`;
   renderEnergyState();
   document.querySelectorAll(".unit-chip").forEach((button, index) => button.classList.toggle("active", state.mode === "unit" && index === state.unitIndex));
 }
@@ -829,9 +960,11 @@ function completeWorldMission() {
   state.score += 120;
   state.stars += 8;
   state.progress.coins = (state.progress.coins || 0) + 30 + equipmentLevel() * 5;
+  const material = awardMaterial("mission");
   state.progress.worldMissions = (state.progress.worldMissions || 0) + 1;
   state.worldMission = createWorldMission();
   state.worldMissionDone = 0;
+  state.battleLog = `委托完成，获得 ${material} 材料包，基地 Lv.${baseLevel()}`;
   save();
   renderHud();
 }
@@ -846,7 +979,9 @@ function gameLoop() {
 function updateSceneMovement() {
   let dx = 0;
   let dy = 0;
-  const speedBoost = Date.now() < state.dashUntil ? 1.75 : 1;
+  const loadout = equipmentLoadout();
+  const gearBoost = loadout.shoes ? 1.12 : 1;
+  const speedBoost = (Date.now() < state.dashUntil ? 1.75 : 1) * gearBoost;
   if (state.joystickActive) {
     dx += state.joystickX;
     dy += state.joystickY;
@@ -862,7 +997,7 @@ function updateSceneMovement() {
     state.playerY = Math.max(10, Math.min(84, state.playerY + (dy / length) * 0.62 * speedBoost));
     state.targetX = null;
     state.targetY = null;
-    $("scenePlayer")?.classList.add("walking");
+    state.isMoving = true;
   } else if (state.targetX !== null && state.targetY !== null) {
     const tx = state.targetX - state.playerX;
     const ty = state.targetY - state.playerY;
@@ -872,15 +1007,15 @@ function updateSceneMovement() {
       state.playerY = state.targetY;
       state.targetX = null;
       state.targetY = null;
-      $("scenePlayer")?.classList.remove("walking");
+      state.isMoving = false;
       if (state.currentObjectId) interactObject(state.currentObjectId);
     } else {
       state.playerX += (tx / length) * 0.72 * speedBoost;
       state.playerY += (ty / length) * 0.72 * speedBoost;
-      $("scenePlayer")?.classList.add("walking");
+      state.isMoving = true;
     }
   } else {
-    $("scenePlayer")?.classList.remove("walking");
+    state.isMoving = false;
   }
   state.distance += (dx || dy || state.targetX !== null) ? 0.22 : 0;
   checkSceneProps();
@@ -1002,7 +1137,25 @@ function checkSceneProps() {
       prop.done = true;
       state.stars += 1;
       state.score += 16 + Math.min(24, state.streak * 2);
-      state.battleLog = "收集星片，星星 +1";
+      const material = awardMaterial("map");
+      state.battleLog = `收集${prop.label}，获得${material} +1`;
+      save();
+    }
+    if (prop.kind === "platform" && close < 12) {
+      const move = prop.speed * prop.dir * 0.95;
+      if (prop.axis === "x") state.playerX = Math.max(6, Math.min(94, state.playerX + move));
+      if (prop.axis === "y") state.playerY = Math.max(10, Math.min(84, state.playerY + move));
+      if (now > (prop.cooldownUntil || 0)) {
+        prop.cooldownUntil = now + 1800;
+        state.score += 6;
+        state.battleLog = "搭上移动平台，绕开地面封锁";
+      }
+    }
+    if (prop.kind === "scanner" && !prop.done && close < 9) {
+      prop.done = true;
+      state.score += 18;
+      state.seconds += 5;
+      state.battleLog = "扫描器启动：红色可疑目标可能是假线索";
       save();
     }
     if (prop.kind === "portal" && close < 9 && now > (prop.cooldownUntil || 0)) {
@@ -1033,7 +1186,7 @@ function openGate(word = pickWord(), forcedType = null) {
   state.current = word;
   const unit = activeUnit();
   const remaining = state.mode === "unit" && unit ? (unit.words.length - unitMasteredCount(unit)) : 99;
-  state.bossActive = state.mode === "unit" && remaining <= 3;
+  state.bossActive = (state.mode === "unit" && remaining <= 3) || state.sceneRule?.key === "boss";
   state.challengeType = forcedType || challengeTypeFor(word);
   state.gateDeadline = state.bossActive ? Date.now() + 12000 : 0;
   window.clearInterval(state.gateTimerId);
@@ -1113,6 +1266,7 @@ function answerGate(button, correct) {
     state.streak += 1;
     state.score += 42 + Math.min(36, state.streak * 6);
     state.stars += 3;
+    const material = awardMaterial(state.bossActive ? "boss" : "word");
     if (state.mode === "all" && state.worldMission?.type === "group" && state.current.group === state.worldMission.group) {
       state.worldMissionDone += 1;
     }
@@ -1121,20 +1275,31 @@ function answerGate(button, correct) {
       known[state.current.word] = (known[state.current.word] || 0) + 1;
     } else {
       state.progress.known[state.current.word] = (state.progress.known[state.current.word] || 0) + 1;
-      if (state.progress.known[state.current.word] >= 2) delete state.progress.missed[state.current.word];
+      if (state.progress.known[state.current.word] >= 2) {
+        delete state.progress.missed[state.current.word];
+        clearPollution();
+      }
     }
     state.bossChain = state.bossActive ? state.bossChain + 1 : 0;
     if (!state.bossActive || state.bossChain >= 3) completeSceneObject();
-    state.battleLog = state.bossActive && state.bossChain < 3 ? `连续破解 ${state.bossChain}/3` : "目标完成，路线已更新";
-    $("hintText").textContent = state.bossActive ? `连续破解 ${state.bossChain}/3` : "识别成功，目标已完成";
+    state.battleLog = state.bossActive && state.bossChain < 3 ? `连续破解 ${state.bossChain}/3，获得${material}` : `目标完成，获得${material}，路线已更新`;
+    $("hintText").textContent = state.bossActive ? `连续破解 ${state.bossChain}/3` : `识别成功，获得${material}`;
   } else {
     button.classList.add("wrong");
-    state.hearts -= 1;
+    if (state.memoryChipReady) {
+      state.memoryChipReady = false;
+      state.score = Math.max(0, state.score - 8);
+      state.battleLog = "记忆芯片触发：抵消本次错误，继续任务";
+      $("hintText").textContent = `芯片提示：${compactMeaning(state.current.meaning)}`;
+    } else {
+      state.hearts -= 1;
+      state.progress.pollution = (state.progress.pollution || 0) + 1;
+      state.battleLog = "信号识别失败，污染 +1，体力 -1";
+      $("hintText").textContent = `答案：${compactMeaning(state.current.meaning)}`;
+    }
     state.streak = 0;
     state.bossChain = 0;
     state.progress.missed[state.current.word] = (state.progress.missed[state.current.word] || 0) + 1;
-    state.battleLog = "信号识别失败，体力 -1";
-    $("hintText").textContent = `答案：${compactMeaning(state.current.meaning)}`;
   }
   save();
   renderHud();
@@ -1238,7 +1403,8 @@ function start(mode = "unit") {
   state.seconds = reviewOnly ? 100 : mode === "all" ? 180 : 150;
   state.stars = 0;
   state.hearts = 3;
-  state.shields = 0;
+  state.shields = equipmentLoadout().shield ? 1 : 0;
+  state.memoryChipReady = equipmentLoadout().memoryChip;
   state.revives = 0;
   state.outOfEnergy = false;
   state.battleLog = "拖动移动，避开巡逻扫描";
@@ -1251,6 +1417,7 @@ function start(mode = "unit") {
   state.sceneProps = [];
   state.sceneHazards = [];
   state.sceneMission = null;
+  state.sceneRule = null;
   state.taskPlan = null;
   state.taskGoal = 0;
   state.taskDone = 0;
@@ -1260,6 +1427,7 @@ function start(mode = "unit") {
   state.nearObjectSince = 0;
   state.autoInteractDelayUntil = 0;
   state.touchMoving = false;
+  state.isMoving = false;
   resetJoystick();
   state.alertCooldown = 0;
   state.alertLevel = 0;

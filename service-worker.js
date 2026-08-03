@@ -1,4 +1,4 @@
-const CACHE = "word-quest-v42";
+const CACHE = "word-quest-v43";
 const ASSETS = [
   "./",
   "./index.html",
