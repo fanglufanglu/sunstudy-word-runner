@@ -1540,9 +1540,9 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .scene-hud span { font-size: 0.72rem; }
   .mission-panel { display: none; }
   .scene-object {
-    width: 82px;
-    min-height: 54px;
-    padding: 7px;
+    width: 76px;
+    min-height: 50px;
+    padding: 6px;
     border-width: 2px;
   }
   .scene-object strong { font-size: 0.74rem; }
@@ -1550,34 +1550,82 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .intel-node,
   .shortcut-node,
   .decoy-node {
-    width: 88px;
-    min-height: 56px;
+    width: 80px;
+    min-height: 50px;
+  }
+  .scene-object.inactive-target,
+  .scene-object.locked,
+  .scene-object.compact,
+  .scene-object.collapsed {
+    width: 38px;
+    min-height: 34px;
+    padding: 4px;
+    opacity: 0.38;
+    border-width: 1px;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.12), 0 0 14px rgba(96,165,250,0.12);
+  }
+  .scene-object.inactive-target strong,
+  .scene-object.locked strong,
+  .scene-object.compact strong,
+  .scene-object.collapsed strong {
+    font-size: 0;
+  }
+  .scene-object.inactive-target strong::after,
+  .scene-object.locked strong::after,
+  .scene-object.compact strong::after,
+  .scene-object.collapsed strong::after {
+    content: "";
+    display: block;
+    width: 8px;
+    height: 8px;
+    margin: 7px auto 0;
+    border-radius: 50%;
+    background: rgba(234, 247, 255, 0.62);
+  }
+  .scene-object.inactive-target span,
+  .scene-object.locked span,
+  .scene-object.compact span,
+  .scene-object.collapsed span {
+    display: none;
+  }
+  .scene-object.active-target,
+  .scene-object.near,
+  .scene-object.ready {
+    width: 78px;
+    min-height: 52px;
+    opacity: 1;
+    filter: none;
+    z-index: 5;
   }
   .scene-prop.patrol {
-    width: 62px;
-    height: 32px;
-    font-size: 0.62rem;
-  }
-  .scene-prop.patrol::after {
-    width: 74px;
-    height: 74px;
-  }
-  .scene-object.compact {
-    width: 60px;
-    min-height: 44px;
-  }
-  .scene-object.collapsed {
-    width: 46px;
-    min-height: 34px;
-  }
-  .scene-prop {
     width: 34px;
     height: 34px;
+    font-size: 0;
+    border-radius: 50%;
+  }
+  .scene-prop.patrol::after {
+    width: 68px;
+    height: 68px;
+  }
+  .scene-prop {
+    width: 28px;
+    height: 28px;
     font-size: 0.62rem;
   }
+  .scene-prop.alert {
+    width: 48px;
+    height: 28px;
+    font-size: 0;
+  }
+  .scene-prop.platform {
+    width: 66px;
+    height: 24px;
+    font-size: 0;
+  }
   .scene-prop.shard {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
+    font-size: 0.55rem;
   }
   .scene-player { scale: 0.78; }
   .mobile-joystick {
@@ -1701,8 +1749,21 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     height: 34svh;
   }
   .scene-object {
-    width: 76px;
-    min-height: 50px;
+    width: 70px;
+    min-height: 46px;
+  }
+  .scene-object.active-target,
+  .scene-object.near,
+  .scene-object.ready {
+    width: 72px;
+    min-height: 48px;
+  }
+  .scene-object.inactive-target,
+  .scene-object.locked,
+  .scene-object.compact,
+  .scene-object.collapsed {
+    width: 34px;
+    min-height: 30px;
   }
   .mobile-joystick {
     width: 62px;

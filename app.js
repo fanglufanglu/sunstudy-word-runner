@@ -353,7 +353,7 @@ function renderSceneObjectButtons() {
     const active = isObjectActive(object);
     const scannerHint = equipmentLoadout().scanner && object.role === "decoy" && !object.done;
     const status = object.done ? "完成" : locked ? `情报 ${intelText()}` : scannerHint ? "可疑" : object.action;
-    const detailed = active || near || object.role === "final";
+    const detailed = active || near || (object.role === "final" && !locked);
     button.type = "button";
     button.className = `scene-object ${object.className}`;
     button.dataset.object = object.id;
@@ -471,23 +471,30 @@ function createSceneProps(layout) {
     { id: `alert-${state.sceneSkinIndex}`, kind: "alert", label: "警戒区", x: 58 + (state.sceneSkinIndex % 2) * 14, y: 26 + (state.sceneSkinIndex % 3) * 8, done: false },
     { id: `speed-${state.sceneSkinIndex}`, kind: "speed", label: "加速带", x: 31 + (state.sceneSkinIndex % 2) * 18, y: 18 + (state.sceneSkinIndex % 3) * 9, cooldownUntil: 0 },
     { id: `gear-${state.sceneSkinIndex}`, kind: "gear", label: "装备箱", x: 74 - (state.sceneSkinIndex % 2) * 16, y: 72 - (state.sceneSkinIndex % 3) * 7, done: false },
-    { id: `portal-${state.sceneSkinIndex}`, kind: "portal", label: "传送门", x: 18, y: 78 - (state.sceneSkinIndex % 2) * 16, cooldownUntil: 0 },
-    { id: `shard-a-${state.sceneSkinIndex}`, kind: "shard", label: "词晶", x: 45, y: 62, done: false },
-    { id: `shard-b-${state.sceneSkinIndex}`, kind: "shard", label: "合金", x: 66, y: 18 + (state.sceneSkinIndex % 2) * 18, done: false }
+    { id: `shard-a-${state.sceneSkinIndex}`, kind: "shard", label: "词晶", x: 45, y: 62, done: false }
   ];
   if (rule === "platform") {
+    return [
+      { id: `speed-${state.sceneSkinIndex}`, kind: "speed", label: "加速带", x: 28, y: 28, cooldownUntil: 0 },
+      { id: `gear-${state.sceneSkinIndex}`, kind: "gear", label: "装备箱", x: 74, y: 72, done: false },
+      { id: `shard-a-${state.sceneSkinIndex}`, kind: "shard", label: "词晶", x: 52, y: 28, done: false },
+      { id: `platform-a-${state.sceneSkinIndex}`, kind: "platform", label: "移动平台", x: 38, y: 46, axis: "x", min: 24, max: 60, speed: 0.16, dir: 1 },
+      { id: `platform-b-${state.sceneSkinIndex}`, kind: "platform", label: "升降平台", x: 76, y: 58, axis: "y", min: 38, max: 72, speed: 0.12, dir: -1 }
+    ];
+  }
+  if (rule === "patrol" || rule === "boss") {
+    base.push({ id: `portal-${state.sceneSkinIndex}`, kind: "portal", label: "传送门", x: 18, y: 78 - (state.sceneSkinIndex % 2) * 16, cooldownUntil: 0 });
+  }
+  if (rule === "door") {
     base.push(
-      { id: `platform-a-${state.sceneSkinIndex}`, kind: "platform", label: "移动平台", x: 36, y: 42, axis: "x", min: 24, max: 62, speed: 0.16, dir: 1 },
-      { id: `platform-b-${state.sceneSkinIndex}`, kind: "platform", label: "升降平台", x: 76, y: 54, axis: "y", min: 35, max: 72, speed: 0.12, dir: -1 }
+      { id: `scanner-${state.sceneSkinIndex}`, kind: "scanner", label: "扫描器", x: 52, y: 72, done: false },
+      { id: `shard-b-${state.sceneSkinIndex}`, kind: "shard", label: "芯片", x: 70, y: 28, done: false }
     );
   }
   if (rule === "sprint") {
     base.push({ id: `speed-b-${state.sceneSkinIndex}`, kind: "speed", label: "冲刺带", x: 56, y: 48, cooldownUntil: 0 });
   }
-  if (rule === "door") {
-    base.push({ id: `scanner-${state.sceneSkinIndex}`, kind: "scanner", label: "扫描器", x: 52, y: 72, done: false });
-  }
-  if (layout.length > 4) {
+  if (layout.length > 4 && rule !== "platform") {
     base.push({ id: `clue-${state.sceneSkinIndex}`, kind: "clue", label: "线索", x: 88, y: 64, done: false });
   }
   return base;
@@ -546,6 +553,7 @@ function renderSceneProps() {
     if (prop.kind === "platform") updatePlatform(prop);
     const el = document.createElement("span");
     el.className = `scene-prop ${prop.kind} ${prop.done ? "done" : ""}`;
+    el.dataset.label = prop.label;
     el.textContent = propText(prop);
     place(el, prop);
     container.appendChild(el);
@@ -553,6 +561,7 @@ function renderSceneProps() {
   state.sceneHazards.forEach((hazard) => {
     const el = document.createElement("span");
     el.className = `scene-prop patrol ${Date.now() < (hazard.hitUntil || 0) ? "hit" : ""}`;
+    el.dataset.label = hazard.label;
     el.textContent = hazard.label;
     place(el, hazard);
     container.appendChild(el);
