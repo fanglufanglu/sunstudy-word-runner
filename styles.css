@@ -430,8 +430,41 @@ h1 {
 }
 
 .scene-object.inactive-target {
-  opacity: 0.5;
-  filter: saturate(0.58);
+  opacity: 0.64;
+  filter: saturate(0.7);
+}
+
+.scene-object.compact {
+  width: 72px;
+  min-height: 52px;
+  padding: 7px;
+  border-radius: 10px;
+}
+
+.scene-object.compact strong {
+  font-size: 0.78rem;
+}
+
+.scene-object.compact span {
+  font-size: 0.62rem;
+}
+
+.scene-object.collapsed {
+  width: 60px;
+  min-height: 42px;
+  padding: 6px;
+  opacity: 0.42;
+  border-color: rgba(148, 163, 184, 0.46);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.12);
+}
+
+.scene-object.collapsed strong {
+  color: #32d79a;
+  font-size: 0.72rem;
+}
+
+.scene-object.collapsed span {
+  display: none;
 }
 
 .task-item {
@@ -595,12 +628,14 @@ h1 {
 
 .scene-prop {
   position: absolute;
-  min-width: 62px;
-  min-height: 34px;
+  width: 42px;
+  height: 42px;
+  min-width: 0;
+  min-height: 0;
   display: grid;
   place-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
+  padding: 0;
+  border-radius: 50%;
   color: #eaf7ff;
   font-size: 0.72rem;
   font-weight: 1000;
@@ -621,8 +656,7 @@ h1 {
 }
 
 .scene-prop.speed {
-  min-width: 86px;
-  border-radius: 8px;
+  border-radius: 50%;
   color: #0b2634;
   background:
     repeating-linear-gradient(90deg, rgba(255,255,255,0.42) 0 8px, transparent 8px 16px),
@@ -632,8 +666,7 @@ h1 {
 }
 
 .scene-prop.gear {
-  min-width: 78px;
-  border-radius: 8px;
+  border-radius: 50%;
   color: #fff;
   background:
     linear-gradient(135deg, rgba(246, 200, 95, 0.34) 0 24%, transparent 24%),
@@ -643,9 +676,9 @@ h1 {
 }
 
 .scene-prop.alert {
-  width: 118px;
-  height: 58px;
-  border-radius: 8px;
+  width: 78px;
+  height: 42px;
+  border-radius: 10px;
   color: rgba(255,255,255,0.86);
   background:
     repeating-linear-gradient(135deg, rgba(255,107,74,0.22) 0 8px, rgba(255,107,74,0.08) 8px 16px),
@@ -654,8 +687,8 @@ h1 {
 }
 
 .scene-prop.patrol {
-  width: 96px;
-  height: 44px;
+  width: 76px;
+  height: 38px;
   border-radius: 999px;
   color: #ffe8e2;
   background:
@@ -671,13 +704,33 @@ h1 {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 112px;
-  height: 112px;
+  width: 94px;
+  height: 94px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: radial-gradient(circle, rgba(255,107,74,0.18) 0 38%, transparent 39%);
   border: 1px solid rgba(255,107,74,0.24);
   pointer-events: none;
+}
+
+.scene-prop.portal {
+  color: #fff;
+  background:
+    radial-gradient(circle, rgba(96,165,250,0.18) 0 34%, transparent 35%),
+    linear-gradient(180deg, #5967d8, #2f7cc0);
+  border: 2px solid rgba(234, 247, 255, 0.7);
+  box-shadow: 0 0 26px rgba(96,165,250,0.42);
+  animation: portal-spin 2.2s linear infinite;
+}
+
+.scene-prop.shard {
+  width: 28px;
+  height: 28px;
+  color: #392900;
+  background: linear-gradient(180deg, #fff4a8, #f6c85f);
+  border: 2px solid rgba(255,255,255,0.76);
+  box-shadow: 0 0 18px rgba(246,200,95,0.54);
+  animation: shard-bob 1.6s ease-in-out infinite;
 }
 
 .scene-prop.patrol.hit {
@@ -713,6 +766,15 @@ h1 {
   0%, 100% { scale: 1; }
   35% { scale: 1.15; }
   70% { scale: 0.96; }
+}
+
+@keyframes portal-spin {
+  to { rotate: 360deg; }
+}
+
+@keyframes shard-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -5px; }
 }
 
 .scene-player {
@@ -1400,13 +1462,30 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
     min-height: 56px;
   }
   .scene-prop.patrol {
-    width: 74px;
-    height: 36px;
+    width: 62px;
+    height: 32px;
     font-size: 0.62rem;
   }
   .scene-prop.patrol::after {
-    width: 86px;
-    height: 86px;
+    width: 74px;
+    height: 74px;
+  }
+  .scene-object.compact {
+    width: 60px;
+    min-height: 44px;
+  }
+  .scene-object.collapsed {
+    width: 46px;
+    min-height: 34px;
+  }
+  .scene-prop {
+    width: 34px;
+    height: 34px;
+    font-size: 0.62rem;
+  }
+  .scene-prop.shard {
+    width: 22px;
+    height: 22px;
   }
   .scene-player { scale: 0.78; }
   .mobile-joystick {
@@ -1537,11 +1616,15 @@ dialog::backdrop { background: rgba(18, 54, 58, 0.45); }
   .shortcut-node,
   .decoy-node { width: 80px; }
   .scene-prop.patrol {
-    width: 66px;
-    height: 32px;
+    width: 54px;
+    height: 28px;
   }
   .scene-prop.patrol::after {
-    width: 76px;
-    height: 76px;
+    width: 64px;
+    height: 64px;
+  }
+  .scene-prop {
+    width: 30px;
+    height: 30px;
   }
 }

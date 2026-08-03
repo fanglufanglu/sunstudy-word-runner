@@ -280,11 +280,16 @@ function renderSceneObjectButtons() {
     const locked = isObjectLocked(object);
     const active = isObjectActive(object);
     const status = object.done ? "完成" : locked ? `情报 ${intelText()}` : object.action;
+    const detailed = active || near || object.role === "final";
     button.type = "button";
     button.className = `scene-object ${object.className}`;
     button.dataset.object = object.id;
     button.disabled = object.done;
-    button.innerHTML = `<strong>${object.label}</strong><span>${status}</span>`;
+    button.innerHTML = object.done
+      ? `<strong>OK</strong><span>${object.label}</span>`
+      : detailed
+        ? `<strong>${object.label}</strong><span>${status}</span>`
+        : `<strong>${shortLabel(object.label)}</strong><span>${object.role === "decoy" ? "?" : object.action}</span>`;
     place(button, object);
     button.classList.toggle("near", near && !object.done);
     button.classList.toggle("done", object.done);
@@ -292,6 +297,8 @@ function renderSceneObjectButtons() {
     button.classList.toggle("ready", object.role === "final" && !locked && !object.done);
     button.classList.toggle("active-target", active);
     button.classList.toggle("inactive-target", !active && !object.done);
+    button.classList.toggle("compact", !detailed && !object.done);
+    button.classList.toggle("collapsed", object.done);
     button.title = object.done ? "已完成" : locked ? `有效情报不足：${intelText()}` : object.role === "final" ? "关键节点：完成单词验证" : object.reward || "靠近后行动";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -299,6 +306,10 @@ function renderSceneObjectButtons() {
     });
     container.appendChild(button);
   });
+}
+
+function shortLabel(label) {
+  return String(label || "").replace(/[机柜箱屏]/g, "").slice(0, 3) || "目标";
 }
 
 function renderMissionTrack(container) {
@@ -381,7 +392,10 @@ function createSceneProps(layout) {
     { id: `bonus-${state.sceneSkinIndex}`, kind: "bonus", label: "补给", x: 14 + (state.sceneSkinIndex % 3) * 8, y: 18 + (state.sceneSkinIndex % 2) * 10, done: false },
     { id: `alert-${state.sceneSkinIndex}`, kind: "alert", label: "警戒区", x: 58 + (state.sceneSkinIndex % 2) * 14, y: 26 + (state.sceneSkinIndex % 3) * 8, done: false },
     { id: `speed-${state.sceneSkinIndex}`, kind: "speed", label: "加速带", x: 31 + (state.sceneSkinIndex % 2) * 18, y: 18 + (state.sceneSkinIndex % 3) * 9, cooldownUntil: 0 },
-    { id: `gear-${state.sceneSkinIndex}`, kind: "gear", label: "装备箱", x: 74 - (state.sceneSkinIndex % 2) * 16, y: 72 - (state.sceneSkinIndex % 3) * 7, done: false }
+    { id: `gear-${state.sceneSkinIndex}`, kind: "gear", label: "装备箱", x: 74 - (state.sceneSkinIndex % 2) * 16, y: 72 - (state.sceneSkinIndex % 3) * 7, done: false },
+    { id: `portal-${state.sceneSkinIndex}`, kind: "portal", label: "传送门", x: 18, y: 78 - (state.sceneSkinIndex % 2) * 16, cooldownUntil: 0 },
+    { id: `shard-a-${state.sceneSkinIndex}`, kind: "shard", label: "星片", x: 45, y: 62, done: false },
+    { id: `shard-b-${state.sceneSkinIndex}`, kind: "shard", label: "星片", x: 66, y: 18 + (state.sceneSkinIndex % 2) * 18, done: false }
   ];
   if (layout.length > 4) {
     base.push({ id: `clue-${state.sceneSkinIndex}`, kind: "clue", label: "线索", x: 88, y: 64, done: false });
@@ -425,7 +439,7 @@ function renderSceneProps() {
   state.sceneProps.forEach((prop) => {
     const el = document.createElement("span");
     el.className = `scene-prop ${prop.kind} ${prop.done ? "done" : ""}`;
-    el.textContent = prop.label;
+    el.textContent = propText(prop);
     place(el, prop);
     container.appendChild(el);
   });
@@ -436,6 +450,10 @@ function renderSceneProps() {
     place(el, hazard);
     container.appendChild(el);
   });
+}
+
+function propText(prop) {
+  return ({ bonus: "+", clue: "线", speed: "速", gear: "盾", alert: "!", portal: "传", shard: "星" }[prop.kind]) || prop.label;
 }
 
 function distanceTo(object) {
@@ -979,6 +997,24 @@ function checkSceneProps() {
       state.score += 24;
       state.battleLog = `获得护盾 x${state.shields}`;
       save();
+    }
+    if (prop.kind === "shard" && !prop.done && close < 8) {
+      prop.done = true;
+      state.stars += 1;
+      state.score += 16 + Math.min(24, state.streak * 2);
+      state.battleLog = "收集星片，星星 +1";
+      save();
+    }
+    if (prop.kind === "portal" && close < 9 && now > (prop.cooldownUntil || 0)) {
+      prop.cooldownUntil = now + 5200;
+      state.playerX = Math.max(8, Math.min(92, 82 - (state.sceneSkinIndex % 2) * 58));
+      state.playerY = Math.max(14, Math.min(82, 24 + (state.sceneSkinIndex % 3) * 18));
+      state.targetX = null;
+      state.targetY = null;
+      state.score += 12;
+      state.battleLog = "传送门启动，快速换位";
+      $("scenePlayer")?.classList.add("boosting");
+      window.setTimeout(() => $("scenePlayer")?.classList.remove("boosting"), 800);
     }
     if (prop.kind === "alert" && close < 12 && now > state.alertCooldown) {
       state.alertCooldown = now + 2600;
