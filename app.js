@@ -108,6 +108,7 @@ const sceneLayouts = [
   [{ x: 18, y: 72 }, { x: 50, y: 78 }, { x: 75, y: 57 }, { x: 36, y: 30 }, { x: 86, y: 24 }]
 ];
 const challengeTypes = ["meaning", "listen", "spell"];
+const objectInteractRadius = 15;
 
 const state = {
   running: false,
@@ -262,7 +263,7 @@ function renderSceneObjectButtons() {
   renderMissionTrack(container);
   state.sceneObjects.filter(isObjectVisible).forEach((object) => {
     const button = document.createElement("button");
-    const near = distanceTo(object) < 13;
+    const near = distanceTo(object) < objectInteractRadius;
     const locked = isObjectLocked(object);
     const active = isObjectActive(object);
     const status = object.done ? "完成" : locked ? `情报 ${intelText()}` : object.action;
@@ -388,6 +389,17 @@ function distanceTo(object) {
   return Math.hypot(state.playerX - object.x, state.playerY - object.y);
 }
 
+function approachPointFor(object) {
+  const dx = state.playerX - object.x;
+  const dy = state.playerY - object.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const stopDistance = object.role === "final" ? 10 : 8;
+  return {
+    x: object.x + (dx / length) * stopDistance,
+    y: object.y + (dy / length) * stopDistance
+  };
+}
+
 function isObjectLocked(object) {
   return object.role === "final" && state.taskDone < state.taskGoal;
 }
@@ -447,8 +459,9 @@ function interactObject(id) {
     renderBattle();
     return;
   }
-  if (distanceTo(object) > 13) {
-    setSceneTarget(object.x, Math.max(12, object.y - 5));
+  if (distanceTo(object) > objectInteractRadius) {
+    const point = approachPointFor(object);
+    setSceneTarget(point.x, point.y);
     state.currentObjectId = id;
     state.battleLog = `前往${object.label}`;
     renderBattle();
@@ -796,7 +809,7 @@ function updateSceneMovement() {
   checkAutoInteract();
 }
 
-function nearestIncompleteObject(maxDistance = 11.5) {
+function nearestIncompleteObject(maxDistance = objectInteractRadius) {
   return state.sceneObjects
     .filter((item) => !item.done && isObjectVisible(item) && isObjectActive(item))
     .map((item) => ({ item, distance: distanceTo(item) }))
