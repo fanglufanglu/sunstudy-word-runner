@@ -141,6 +141,7 @@ const state = {
   taskPlan: null,
   taskGoal: 0,
   taskDone: 0,
+  missionStep: 1,
   alertLevel: 0,
   currentObjectId: null,
   nearObjectId: null,
@@ -257,10 +258,12 @@ function renderBattle() {
 function renderSceneObjectButtons() {
   const container = $("sceneObjects");
   container.innerHTML = "";
-  state.sceneObjects.forEach((object) => {
+  renderMissionTrack(container);
+  state.sceneObjects.filter(isObjectVisible).forEach((object) => {
     const button = document.createElement("button");
     const near = distanceTo(object) < 13;
     const locked = isObjectLocked(object);
+    const active = isObjectActive(object);
     const status = object.done ? "完成" : locked ? `情报 ${intelText()}` : object.action;
     button.type = "button";
     button.className = `scene-object ${object.className}`;
@@ -272,6 +275,8 @@ function renderSceneObjectButtons() {
     button.classList.toggle("done", object.done);
     button.classList.toggle("locked", locked);
     button.classList.toggle("ready", object.role === "final" && !locked && !object.done);
+    button.classList.toggle("active-target", active);
+    button.classList.toggle("inactive-target", !active && !object.done);
     button.title = object.done ? "已完成" : locked ? `有效情报不足：${intelText()}` : object.role === "final" ? "关键节点：完成单词验证" : object.reward || "靠近后行动";
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -281,26 +286,54 @@ function renderSceneObjectButtons() {
   });
 }
 
+function renderMissionTrack(container) {
+  const active = activeMissionObjects();
+  const points = [
+    { x: state.playerX, y: state.playerY },
+    ...state.sceneObjects.filter((item) => item.done && item.role !== "side").map((item) => ({ x: item.x, y: item.y })),
+    ...(active.length ? [{ x: active[0].x, y: active[0].y }] : [])
+  ];
+  if (points.length > 1) {
+    const route = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    route.setAttribute("class", "mission-route");
+    route.setAttribute("viewBox", "0 0 100 100");
+    const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    polyline.setAttribute("points", points.map((point) => `${point.x},${100 - point.y}`).join(" "));
+    route.appendChild(polyline);
+    container.appendChild(route);
+  }
+  const panel = document.createElement("div");
+  panel.className = "mission-panel";
+  panel.innerHTML = `
+    <span>任务链 ${Math.min(state.missionStep, 3)}/3</span>
+    <strong>${missionInstruction()}</strong>
+    <small>情报 ${intelText()} · 警戒 ${state.alertLevel}</small>
+  `;
+  container.appendChild(panel);
+}
+
 function prepareSceneObjects() {
   const missionIndex = (state.sceneSkinIndex + Math.floor(Math.random() * sceneMissions.length)) % sceneMissions.length;
   const layout = sceneLayouts[state.sceneSkinIndex % sceneLayouts.length];
-  const shuffledLayout = shuffle(layout);
+  const orderedLayout = [...layout].sort((a, b) => a.x - b.x);
   const plan = taskPlans[state.sceneSkinIndex % taskPlans.length];
   const taskGoal = plan.intelNeeded;
-  const finalPoint = shuffledLayout[shuffledLayout.length - 1];
+  const finalPoint = orderedLayout[orderedLayout.length - 1];
   state.sceneMission = sceneMissions[missionIndex];
   state.taskPlan = plan;
   state.taskGoal = taskGoal;
   state.taskDone = 0;
+  state.missionStep = 1;
   state.alertLevel = 0;
-  const nodeObjects = shuffle(plan.nodes).slice(0, Math.min(plan.nodes.length, shuffledLayout.length - 1)).map((node, index) => ({
+  const nodeObjects = plan.nodes.slice(0, Math.min(plan.nodes.length, orderedLayout.length - 1)).map((node, index) => ({
     ...node,
     id: `${node.role}-${state.sceneSkinIndex}-${index}`,
+    phase: index === 0 ? 1 : 2,
     done: false,
-    x: shuffledLayout[index].x,
-    y: shuffledLayout[index].y
+    x: orderedLayout[index].x,
+    y: orderedLayout[index].y
   }));
-  const sidePoint = shuffledLayout.length > 5 ? shuffledLayout[shuffledLayout.length - 2] : null;
+  const sidePoint = orderedLayout.length > 5 ? orderedLayout[orderedLayout.length - 2] : null;
   const sideObject = sidePoint ? [{
     id: `side-${state.sceneSkinIndex}`,
     label: "临时补给",
@@ -332,7 +365,7 @@ function prepareSceneObjects() {
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
-  state.battleLog = `${plan.title}：获取 ${taskGoal} 条${plan.goalLabel}，避开假线索`;
+  state.battleLog = missionInstruction();
 }
 
 function createSceneProps(layout) {
@@ -370,6 +403,34 @@ function intelText() {
   return `${Math.min(state.taskDone, state.taskGoal)}/${state.taskGoal}`;
 }
 
+function isObjectVisible(object) {
+  if (object.role === "final") return true;
+  if (object.role === "side") return state.missionStep >= 2 || object.done;
+  return object.done || (object.phase || 1) <= state.missionStep;
+}
+
+function isObjectActive(object) {
+  if (object.done) return false;
+  if (object.role === "final") return !isObjectLocked(object);
+  if (object.role === "side") return state.missionStep >= 2;
+  return (object.phase || 1) === state.missionStep;
+}
+
+function activeMissionObjects() {
+  return state.sceneObjects.filter((object) => isObjectVisible(object) && isObjectActive(object));
+}
+
+function missionInstruction() {
+  const plan = state.taskPlan;
+  if (!plan) return "移动角色，执行当前任务";
+  if (state.taskDone >= state.taskGoal) return `最终目标：前往${plan.finalLabel}，用单词验证完成突围`;
+  if (state.missionStep <= 1) {
+    const first = state.sceneObjects.find((item) => item.phase === 1 && !item.done);
+    return first ? `第一步：先${first.action}${first.label}，拿到任务方向` : `第一步：获取${plan.goalLabel}`;
+  }
+  return `第二步：选择路线，真线索更稳，捷径更快但会升高警戒`;
+}
+
 function setSceneTarget(x, y) {
   state.targetX = Math.max(6, Math.min(94, x));
   state.targetY = Math.max(10, Math.min(84, y));
@@ -387,6 +448,12 @@ function interactObject(id) {
   if (!state.running || state.paused) return;
   const object = state.sceneObjects.find((item) => item.id === id);
   if (!object || object.done) return;
+  if (!isObjectVisible(object)) return;
+  if (!isObjectActive(object)) {
+    state.battleLog = object.role === "final" ? `先完成前置情报，再处理${object.label}` : missionInstruction();
+    renderBattle();
+    return;
+  }
   if (distanceTo(object) > 13) {
     setSceneTarget(object.x, Math.max(12, object.y - 5));
     state.currentObjectId = id;
@@ -444,9 +511,12 @@ function completeIntelObject(object) {
   }
   state.autoInteractDelayUntil = Date.now() + 520;
   if (beforeIntel < state.taskGoal && state.taskDone >= state.taskGoal) {
+    state.missionStep = 3;
     state.seconds += 4;
     state.score += 18;
     state.battleLog = state.taskPlan?.success || "目标集齐，关键节点已开放";
+  } else if (object.phase === state.missionStep && state.taskDone < state.taskGoal) {
+    state.missionStep = Math.max(state.missionStep, 2);
   }
   save();
   renderHud();
@@ -481,7 +551,8 @@ function completeSceneObject() {
 }
 
 function refreshSceneIfNeeded() {
-  if (state.sceneObjects.some((item) => !item.done && item.role !== "side")) return;
+  const finalObject = state.sceneObjects.find((item) => item.role === "final");
+  if (!finalObject?.done) return;
   state.sceneSkinIndex += 1;
   state.sceneIndex = state.sceneSkinIndex % unlockedSceneCount();
   state.playerX = 14;
@@ -490,6 +561,7 @@ function refreshSceneIfNeeded() {
   state.targetY = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;
+  state.missionStep = 1;
   prepareSceneObjects();
   state.battleLog = "进入新的街区，寻找下一组目标";
 }
@@ -733,7 +805,7 @@ function updateSceneMovement() {
 
 function nearestIncompleteObject(maxDistance = 11.5) {
   return state.sceneObjects
-    .filter((item) => !item.done)
+    .filter((item) => !item.done && isObjectVisible(item) && isObjectActive(item))
     .map((item) => ({ item, distance: distanceTo(item) }))
     .filter(({ distance }) => distance < maxDistance)
     .sort((a, b) => a.distance - b.distance)[0]?.item || null;
@@ -999,6 +1071,7 @@ function start(mode = "unit") {
   state.taskPlan = null;
   state.taskGoal = 0;
   state.taskDone = 0;
+  state.missionStep = 1;
   state.currentObjectId = null;
   state.nearObjectId = null;
   state.nearObjectSince = 0;

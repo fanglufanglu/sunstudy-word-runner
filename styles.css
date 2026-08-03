@@ -239,6 +239,66 @@ h1 {
   pointer-events: none;
 }
 
+.mission-route {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.mission-route polyline {
+  fill: none;
+  stroke: rgba(50, 215, 154, 0.58);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 3 3;
+  filter: drop-shadow(0 0 5px rgba(50, 215, 154, 0.35));
+  animation: route-flow 1.6s linear infinite;
+}
+
+.mission-panel {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 6;
+  width: min(58%, 360px);
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(96, 165, 250, 0.38);
+  border-radius: 6px;
+  color: #eaf7ff;
+  background:
+    linear-gradient(90deg, rgba(96, 165, 250, 0.14) 0 3px, transparent 3px),
+    rgba(10, 29, 46, 0.84);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.24);
+  pointer-events: none;
+}
+
+.mission-panel span {
+  color: #60a5fa;
+  font-size: 0.68rem;
+  font-weight: 1000;
+}
+
+.mission-panel strong {
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.mission-panel small {
+  color: rgba(234, 247, 255, 0.68);
+  font-weight: 900;
+}
+
+@keyframes route-flow {
+  to { stroke-dashoffset: -12; }
+}
+
 .skin-metro {
   background:
     linear-gradient(90deg, rgba(255,255,255,0.13) 0 2px, transparent 2px 84px),
@@ -337,6 +397,16 @@ h1 {
 
 .scene-object.ready {
   animation: ready-glow 1.25s ease-in-out infinite;
+}
+
+.scene-object.active-target {
+  outline: 2px solid rgba(50, 215, 154, 0.72);
+  outline-offset: 4px;
+}
+
+.scene-object.inactive-target {
+  opacity: 0.5;
+  filter: saturate(0.58);
 }
 
 .task-item {
